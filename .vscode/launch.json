@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Train tiny GPT-2",
+      "type": "python",
+      "request": "launch",
+      "module": "my_gpt2.train",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "--input",
+        "data/tiny.txt",
+        "--steps",
+        "200"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    }
+  ]
+}
