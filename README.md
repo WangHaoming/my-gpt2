@@ -20,6 +20,7 @@
 ```bash
 python -m venv .venv
 source .venv/bin/activate
+# 安装 dev 依赖（测试、格式化等工具）， 从 pyproject.toml中获得依赖库信息
 pip install -e ".[dev]"
 ```
 
@@ -27,6 +28,9 @@ pip install -e ".[dev]"
 
 ```bash
 pytest
+
+#如果加-s，可以打印在测试用例源码中写的 print 函数结果
+pytest -s
 ```
 
 ## 训练一个玩具模型

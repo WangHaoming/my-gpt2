@@ -6,10 +6,15 @@ class CharTokenizer:
     stoi: dict[str, int]
     itos: dict[int, str]
 
+    # CharTokenizer,最简单的的 tokenizer实现，把文本中的每个字符（不是单词）映射成一个整数，然后反向映射回来
     @classmethod
     def from_text(cls, text: str) -> "CharTokenizer":
         chars = sorted(set(text))
+        # stoi = {}
+        # for i, ch in enumerate(chars):
+        #     stoi[ch] = i
         stoi = {ch: i for i, ch in enumerate(chars)}
+
         itos = {i: ch for ch, i in stoi.items()}
         return cls(stoi=stoi, itos=itos)
 
