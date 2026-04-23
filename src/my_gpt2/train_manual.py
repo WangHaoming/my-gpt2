@@ -71,6 +71,8 @@ def main() -> None:
             optimizer.zero_grad(set_to_none=True)  # 清空上一步的梯度（set_to_none 更省内存）
             # 反向传播计算梯度
             loss.backward()
+
+            
             optimizer.step()
 
             step += 1
