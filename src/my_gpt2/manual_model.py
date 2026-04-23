@@ -68,6 +68,7 @@ class ManualGPT2:
     def _zeros(self, size: int) -> torch.Tensor:
         return torch.zeros(size, device=self.device, requires_grad=True)
 
+    
     def parameters(self) -> Iterator[torch.Tensor]:
         yield from self.params.values()
 

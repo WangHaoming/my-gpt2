@@ -50,6 +50,7 @@ def main() -> None:
         n_embd=args.n_embd,
     )
     model = ManualGPT2(config, device=device)
+    
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
     model.train()
