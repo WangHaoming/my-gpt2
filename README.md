@@ -46,6 +46,8 @@ printf "hello gpt\nhello transformer\n" > data/tiny.txt
 
 ```bash
 python -m my_gpt2.train --input data/tiny.txt --steps 200
+python -m my_gpt2.train_manual --input data/tiny.txt --steps 200
+
 ```
 
 生成：

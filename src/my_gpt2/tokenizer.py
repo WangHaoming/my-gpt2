@@ -1,4 +1,7 @@
+from __future__ import annotations  # 支持前向引用  for -> CharTokenizer
 from dataclasses import dataclass
+
+
 
 
 @dataclass
@@ -18,7 +21,7 @@ class CharTokenizer:
     itos: dict[int, str]  # int to string：token ID → 字符
 
     @classmethod
-    def from_text(cls, text: str) -> "CharTokenizer":
+    def from_text(cls, text: str) -> CharTokenizer:
         """
         从原始文本构建 tokenizer：统计所有出现的字符，排序后分配连续 ID。
 

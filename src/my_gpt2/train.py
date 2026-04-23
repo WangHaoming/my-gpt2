@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=16, help="每个 batch 中并行训练的文本片段数量。")
 
     # --block-size：每条样本的 token 数（上下文窗口长度），等于 GPTConfig.block_size
-    parser.add_argument("--block-size", type=int, default=64, help="每个训练样本的上下文长度，也就是模型一次看到的 token 数。")
+    parser.add_argument("--block-size", type=int, default=12, help="每个训练样本的上下文长度，也就是模型一次看到的 token 数。")
 
     # 以下三个参数直接对应 GPTConfig 的同名字段
     parser.add_argument("--n-layer", type=int, default=4, help="Transformer block 的层数，层数越多模型容量越大。")
@@ -49,6 +49,7 @@ def main() -> None:
     text = args.input.read_text(encoding="utf-8")
 
     # 从训练文本构建字符级 tokenizer，统计所有字符并分配 ID
+    # tokenizer初始化之后，在内部有两个字典stoi 和 itos，分别是字符到token id 和 token id 到字符的映射
     tokenizer = CharTokenizer.from_text(text)
 
     # 把全文编码成 token ID 列表，再切成 (x, y) 对的滑动窗口数据集
@@ -64,7 +65,7 @@ def main() -> None:
     # ── 模型构建 ──────────────────────────────────────────────────────────────
     config = GPTConfig(
         vocab_size=tokenizer.vocab_size,  # 词表大小由训练文本中的不同字符数决定
-        block_size=args.block_size,       # 上下文长度，与 dataset 保持一致
+        block_size=args.block_size,       # 上下文长度，必须小于训练文本长度
         n_layer=args.n_layer,
         n_head=args.n_head,
         n_embd=args.n_embd,

@@ -6,6 +6,8 @@ class TinyTextDataset(Dataset[tuple[torch.Tensor, torch.Tensor]]):
     """
     字符级语言模型的训练数据集。
 
+    TinyTextDataset 是 PyTorch Dataset 的子类，负责管理数据集的创建和采样。
+
     核心思路：给定一段连续 token 序列，以滑动窗口方式切出样本对：
       - 输入 x：第 i 到第 i+block_size-1 个 token
       - 目标 y：第 i+1 到第 i+block_size 个 token（x 整体右移一位）
@@ -26,7 +28,7 @@ class TinyTextDataset(Dataset[tuple[torch.Tensor, torch.Tensor]]):
         self.data = torch.tensor(token_ids, dtype=torch.long)
         self.block_size = block_size
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:   
         # 可以切出的样本总数
         # 每个样本需要 block_size+1 个连续 token（x 用前 block_size 个，y 用后 block_size 个）
         # 最后一个样本从下标 len-block_size-1 开始，所以总数 = len - block_size

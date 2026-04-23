@@ -79,3 +79,4 @@
 - `generate.py`：文本生成入口。
 - `checkpoint.py`：后续可拆出的保存/加载逻辑。
 - `tests/`：模块级 smoke test 和行为测试。
+
