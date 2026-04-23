@@ -125,6 +125,11 @@ class ManualGPT2:
     def _gelu(self, x: torch.Tensor) -> torch.Tensor:
         return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * x.pow(3))))
 
+    # 丢弃法，用于训练时随机丢弃一些神经元，防止过拟合
+    # 在测试时，不进行丢弃，返回原始输入
+    # 在训练时，按照丢弃概率 p 随机丢弃一些神经元，返回丢弃后的输入
+    # 丢弃后的输入是原始输入乘以丢弃概率的倒数
+    # 丢弃后的输入是原始输入乘以丢弃概率的倒数
     def _dropout(self, x: torch.Tensor) -> torch.Tensor:
         p = self.config.dropout
         if not self.training or p == 0:
