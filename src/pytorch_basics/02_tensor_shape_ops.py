@@ -31,13 +31,15 @@ print(f"原始:         {t.shape}")
 print(f"transpose(1,2): {t2.shape}")
 
 # transpose 后内存不连续，view 之前需要 contiguous()
-t3 = t2.contiguous().view(2, 4, -1)
+# 2个block，每个4行，-1表示自动推断该维度大小
+t3 = t2.contiguous().view(2, 4, -1) 
+
 print(f"contiguous().view(2,4,-1): {t3.shape}")
 
 # 对最后两维转置：在计算 Q @ K^T 时常用
 q = torch.zeros(2, 4, 8, 16)   # (batch, n_head, seq, head_dim)
 k = torch.zeros(2, 4, 8, 16)
-att = q @ k.transpose(-2, -1)  # (batch, n_head, seq, seq)
+att = q @ k.transpose(-2, -1)  # -> (batch, n_head, head_dim, seq)
 print(f"\nQ @ K^T: {q.shape} @ {k.transpose(-2,-1).shape} = {att.shape}")
 
 # ── unsqueeze / squeeze：增减大小为 1 的维度 ──────────────────────────────────
