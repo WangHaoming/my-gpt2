@@ -6,16 +6,20 @@ requires_grad / backward / grad / no_grad
 运行：python src/pytorch_basics/04_autograd.py
 """
 
+from sqlite3 import ProgrammingError
 import torch
 
 # ── 基本用法：标量求导 ────────────────────────────────────────────────────────
 print("── 标量求导 ──")
-x = torch.tensor(3.0, requires_grad=True)   # requires_grad=True：跟踪这个 tensor 的计算
+x = torch.tensor(2.0, requires_grad=True)   # requires_grad=True：跟踪这个 tensor 的计算
 
 y = x ** 2 + 2 * x + 1   # y = x² + 2x + 1，构建计算图
 print(f"x = {x.item()}")
 print(f"y = x² + 2x + 1 = {y.item()}")
 
+# y 也是一个张量。
+print(f"x shape: {x.shape}")
+print(f"y shape: {type(y)}")
 y.backward()   # 反向传播：计算 dy/dx
 
 # dy/dx = 2x + 2，在 x=3 时 = 8

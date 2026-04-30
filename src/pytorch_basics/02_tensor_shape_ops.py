@@ -26,8 +26,10 @@ print(f"view(x): {x.view(3,1,8).shape} -> {x.view(3,1,8)}")
 print("\n── transpose ──")
 # 在注意力机制中：(batch, seq, n_head, head_dim) → (batch, n_head, seq, head_dim)
 t = torch.zeros(2, 8, 4, 16)      # (batch, seq, n_head, head_dim)
+t1 = t.transpose(0, 1)            # 交换 dim0 和 dim1
 t2 = t.transpose(1, 2)            # 交换 dim1 和 dim2
 print(f"原始:         {t.shape}")
+print(f"transpose(0,1): {t1.shape}")
 print(f"transpose(1,2): {t2.shape}")
 
 # transpose 后内存不连续，view 之前需要 contiguous()
