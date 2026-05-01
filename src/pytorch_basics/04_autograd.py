@@ -11,9 +11,9 @@ import torch
 
 # ── 基本用法：标量求导 ────────────────────────────────────────────────────────
 print("── 标量求导 ──")
-x = torch.tensor(2.0, requires_grad=True)   # requires_grad=True：跟踪这个 tensor 的计算
+x = torch.tensor(3.0, requires_grad=True)   # requires_grad=True：跟踪这个 tensor 的计算
 
-y = x ** 2 + 2 * x + 1   # y = x² + 2x + 1，构建计算图
+y = x ** 3 + 2 * x + 1   # y = x² + 2x + 1，构建计算图
 print(f"x = {x.item()}")
 print(f"y = x² + 2x + 1 = {y.item()}")
 
@@ -39,7 +39,7 @@ print("\n── 梯度累积问题 ──")
 x3 = torch.tensor(2.0, requires_grad=True)
 
 for i in range(3):
-    y3 = x3 ** 2
+    y3 = x3 ** 2 + x3 * 2
     y3.backward()
     print(f"第 {i+1} 次 backward 后，x3.grad = {x3.grad.item()}  （梯度在累积！）")
     # 如果不清空，梯度会一直叠加
@@ -61,11 +61,14 @@ with torch.no_grad():
     z = x5 ** 2
     print(f"no_grad 下，z.requires_grad = {z.requires_grad}")   # False
     print(f"z = {z.item()}  （能计算，但不会构建计算图，节省内存）")
+    # 没有生成计算图，如果无法求梯度，调用 z.backward()会报错
+    # z.backward()
 
 # ── 计算图可视化（打印 grad_fn）────────────────────────────────────────────────
 print("\n── 计算图 grad_fn ──")
 a = torch.tensor(2.0, requires_grad=True)
 b = a * 3        # MulBackward
+
 c = b + 1        # AddBackward
 d = c ** 2       # PowBackward
 print(f"a.grad_fn: {a.grad_fn}  （叶子节点，无 grad_fn）")
