@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>GPT-2 神经网络可视化</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #0d1117;
+  --panel:   #161b22;
+  --border:  #30363d;
+  --text:    #c9d1d9;
+  --dim:     #8b949e;
+  --accent:  #58a6ff;
+  --red:     #f85149;
+  --green:   #3fb950;
+  --yellow:  #d29922;
+}
+body { background: var(--bg); color: var(--text); font-family: 'SF Mono', 'Consolas', monospace; font-size: 13px; line-height: 1.5; }
+
+/* Layout */
+.layout { display: flex; height: 100vh; overflow: hidden; }
+.sidebar { width: 260px; min-width: 260px; background: var(--panel); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+.content { flex: 1; overflow-y: auto; }
+
+/* Sidebar sections */
+.s-title { padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); }
+.s-block { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.s-block label { display: block; color: var(--dim); font-size: 11px; margin-bottom: 4px; }
+.s-block input, .s-block select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 4px; font-family: inherit; font-size: 12px; }
+.s-block input:focus, .s-block select:focus { outline: none; border-color: var(--accent); }
+.btn { display: inline-block; padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); background: #21262d; color: var(--text); cursor: pointer; font-family: inherit; font-size: 12px; transition: background 0.15s; }
+.btn:hover { background: #30363d; }
+.btn.primary { background: #1f6feb; border-color: #388bfd; color: #fff; }
+.btn.primary:hover { background: #388bfd; }
+.btn.danger { background: #b62324; border-color: #f85149; color: #fff; }
+.btn.danger:hover { background: #f85149; }
+.btn-row { display: flex; gap: 6px; margin-top: 8px; }
+
+/* Config badges */
+.cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
+.cfg-item { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; }
+.cfg-item .k { color: var(--dim); font-size: 10px; }
+.cfg-item .v { color: var(--accent); font-size: 13px; font-weight: 600; }
+
+/* Status bar */
+.status { padding: 6px 16px; font-size: 12px; border-bottom: 1px solid var(--border); min-height: 28px; }
+.status .ok   { color: var(--green); }
+.status .err  { color: var(--red); }
+.status .info { color: var(--dim); }
+
+/* Tabs */
+.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--panel); }
+.tab { padding: 10px 20px; cursor: pointer; color: var(--dim); border-bottom: 2px solid transparent; transition: color 0.15s; font-size: 13px; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Tab panes */
+.pane { display: none; padding: 20px; }
+.pane.active { display: block; }
+
+/* Loss chart */
+#loss-chart { display: block; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 16px; }
+
+/* Weight grid */
+.wg-section { margin-bottom: 24px; }
+.wg-section-title { color: var(--dim); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+.wg-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.w-cell { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; transition: border-color 0.15s; }
+.w-cell:hover { border-color: var(--accent); }
+.w-cell.updated { border-color: var(--yellow); animation: pulse 0.5s; }
+@keyframes pulse { 0%,100%{border-color:var(--yellow)} 50%{border-color:#f0e68c} }
+.w-cell .w-name { font-size: 10px; color: var(--dim); margin-bottom: 4px; white-space: nowrap; }
+.w-cell .w-shape { font-size: 10px; color: var(--accent); margin-bottom: 6px; }
+.w-cell canvas { display: block; image-rendering: pixelated; border-radius: 2px; }
+.w-cell .w-stats { font-size: 10px; color: var(--dim); margin-top: 5px; }
+.w-cell .diff-badge { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 3px; background: rgba(210,153,34,0.2); color: var(--yellow); margin-top: 3px; }
+
+/* Inference display */
+.token-strip { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+.token { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 14px; }
+.token.prompt { border-color: var(--accent); color: var(--accent); }
+
+.layer-block { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+.layer-header { padding: 8px 14px; background: #1c2330; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.layer-header .layer-label { font-weight: 600; color: var(--accent); font-size: 12px; }
+.layer-header .op-label { font-size: 11px; color: var(--dim); }
+.layer-body { padding: 12px; display: flex; flex-wrap: wrap; gap: 14px; }
+
+.act-cell { }
+.act-cell .act-label { font-size: 10px; color: var(--dim); margin-bottom: 4px; }
+.act-cell .act-shape { font-size: 10px; color: var(--accent); margin-bottom: 5px; }
+.act-cell canvas { display: block; image-rendering: pixelated; border-radius: 2px; border: 1px solid var(--border); }
+
+/* Predictions */
+.pred-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.pred-item { display: flex; align-items: center; gap: 10px; }
+.pred-char { width: 28px; text-align: center; background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 2px 0; font-size: 14px; }
+.pred-bar-bg { flex: 1; height: 14px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.pred-bar { height: 100%; background: var(--accent); border-radius: 3px; }
+.pred-pct { width: 52px; text-align: right; color: var(--dim); font-size: 11px; }
+
+/* Modal overlay */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 20px; max-width: 90vw; max-height: 90vh; overflow: auto; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.modal-title { font-size: 14px; font-weight: 600; }
+.modal-close { cursor: pointer; color: var(--dim); font-size: 18px; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-stats { display: flex; gap: 16px; margin-bottom: 12px; font-size: 12px; color: var(--dim); }
+.modal-stats span b { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="s-title">GPT-2 可视化</div>
+
+    <!-- Model info -->
+    <div class="s-block">
+      <label>模型配置</label>
+      <div class="cfg-grid" id="cfg-grid">
+        <div class="cfg-item"><div class="k">加载中…</div><div class="v">—</div></div>
+      </div>
+    </div>
+
+    <!-- Training controls -->
+    <div class="s-block">
+      <label>训练文本文件</label>
+      <input id="train-file" type="text" placeholder="data/train.txt" value="">
+      <label style="margin-top:8px">训练步数</label>
+      <input id="train-steps" type="number" value="200" min="1">
+      <label style="margin-top:8px">学习率</label>
+      <input id="train-lr" type="text" value="3e-4">
+      <label style="margin-top:8px">每隔多少步更新权重图</label>
+      <input id="train-wevery" type="number" value="10" min="1">
+      <div class="btn-row">
+        <button class="btn primary" id="btn-train" onclick="startTraining()">▶ 开始训练</button>
+        <button class="btn danger"  id="btn-stop"  onclick="stopTraining()" style="display:none">■ 停止</button>
+      </div>
+    </div>
+
+    <!-- Inference controls -->
+    <div class="s-block">
+      <label>推理 prompt</label>
+      <input id="infer-prompt" type="text" placeholder="hello" value="hello">
+      <div class="btn-row">
+        <button class="btn primary" onclick="runInference()">▶ 运行推理</button>
+      </div>
+    </div>
+
+    <!-- Step/Loss display -->
+    <div class="s-block" id="train-status-block" style="display:none">
+      <label>训练状态</label>
+      <div id="train-step-info" style="color:var(--accent);font-size:13px;margin-top:4px">—</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="content">
+    <div class="status" id="status-bar"><span class="info">正在加载模型…</span></div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('weights')">权重矩阵</div>
+      <div class="tab" onclick="showTab('training')">训练过程</div>
+      <div class="tab" onclick="showTab('inference')">推理过程</div>
+    </div>
+
+    <!-- Weights tab -->
+    <div class="pane active" id="pane-weights">
+      <div id="weights-root"></div>
+    </div>
+
+    <!-- Training tab -->
+    <div class="pane" id="pane-training">
+      <canvas id="loss-chart" width="800" height="200"></canvas>
+      <div id="training-weights-root"></div>
+    </div>
+
+    <!-- Inference tab -->
+    <div class="pane" id="pane-inference">
+      <div id="inference-root"><div style="color:var(--dim);padding:20px">运行推理后结果显示在这里…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">—</div>
+      <div class="modal-close" onclick="closeModal()">✕</div>
+    </div>
+    <div class="modal-stats" id="modal-stats"></div>
+    <canvas id="modal-canvas" style="image-rendering:pixelated;border:1px solid var(--border);border-radius:4px"></canvas>
+  </div>
+</div>
+
+<script>
+// ── Color mapping ─────────────────────────────────────────────────────────────
+// RdBu diverging: blue(neg) → white(0) → red(pos)
+const COLOR_STOPS = [
+  [-1.0,  [49,  54,  149]],
+  [-0.5,  [69,  117, 180]],
+  [-0.25, [145, 191, 219]],
+  [0.0,   [247, 247, 247]],
+  [0.25,  [253, 174, 97]],
+  [0.5,   [215, 48,  39]],
+  [1.0,   [165, 0,   38]],
+];
+
+function valToRGB(v) {
+  v = Math.max(-1, Math.min(1, v));
+  for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
+    const [v0, c0] = COLOR_STOPS[i];
+    const [v1, c1] = COLOR_STOPS[i + 1];
+    if (v >= v0 && v <= v1) {
+      const t = (v - v0) / (v1 - v0);
+      return c0.map((x, j) => Math.round(x + t * (c1[j] - x)));
+    }
+  }
+  return COLOR_STOPS[COLOR_STOPS.length - 1][1];
+}
+
+// Diff: white(0) → orange(max)
+function diffToRGB(v, maxV) {
+  if (maxV < 1e-10) return [247, 247, 247];
+  const t = Math.min(1, v / maxV);
+  return [
+    Math.round(247 - t * (247 - 210)),
+    Math.round(247 - t * (247 - 105)),
+    Math.round(247 - t * (247 - 30)),
+  ];
+}
+
+// ── Canvas heatmap renderer ───────────────────────────────────────────────────
+function renderHeatmap(canvas, data2d, opts = {}) {
+  const rows = data2d.length;
+  const cols = data2d[0].length;
+  const maxPx = opts.maxPx || 160;
+
+  // Pixel scale: try to fill maxPx in the larger dimension
+  let scale = Math.max(1, Math.floor(maxPx / Math.max(rows, cols)));
+  // Cap canvas at reasonable size
+  scale = Math.min(scale, 8);
+
+  const W = cols * scale;
+  const H = rows * scale;
+  canvas.width  = W;
+  canvas.height = H;
+
+  // Find abs-max for normalization
+  let absMax = opts.absMax;
+  if (absMax === undefined) {
+    absMax = 1e-10;
+    for (const row of data2d) for (const v of row) absMax = Math.max(absMax, Math.abs(v));
+  }
+
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(W, H);
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const norm = data2d[r][c] / absMax;
+      const [R, G, B] = opts.diffMode
+        ? diffToRGB(data2d[r][c], absMax)
+        : valToRGB(norm);
+      for (let dr = 0; dr < scale; dr++) {
+        for (let dc = 0; dc < scale; dc++) {
+          const idx = ((r * scale + dr) * W + (c * scale + dc)) * 4;
+          img.data[idx]     = R;
+          img.data[idx + 1] = G;
+          img.data[idx + 2] = B;
+          img.data[idx + 3] = 255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['weights', 'training', 'inference'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.pane').forEach((p, i) => {
+    const names = ['weights', 'training', 'inference'];
+    p.classList.toggle('active', names[i] === name);
+  });
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function setStatus(msg, cls = 'info') {
+  document.getElementById('status-bar').innerHTML = `<span class="${cls}">${msg}</span>`;
+}
+
+function fmtStats(s) {
+  return `mean <b>${s.mean.toFixed(4)}</b>  std <b>${s.std.toFixed(4)}</b>  [<b>${s.min.toFixed(3)}</b>, <b>${s.max.toFixed(3)}</b>]`;
+}
+
+// Short weight name for display
+function shortName(name) {
+  return name
+    .replace('transformer.', '')
+    .replace(/^h\.(\d+)\./, 'L$1 · ')
+    .replace('attn.c_attn', 'c_attn (QKV)')
+    .replace('attn.c_proj', 'c_proj_attn')
+    .replace('mlp.c_fc',    'c_fc (MLP↑)')
+    .replace('mlp.c_proj',  'c_proj_mlp (MLP↓)');
+}
+
+// ── Weight cell builder ───────────────────────────────────────────────────────
+// Keyed by rootId so two different grid containers are fully independent.
+const _rootCells = {};   // rootId → { name: {cell, canvas, statsDiv, diffBadge, wInfo} }
+
+function _cells(rootId) {
+  if (!_rootCells[rootId]) _rootCells[rootId] = {};
+  return _rootCells[rootId];
+}
+
+function buildWeightCell(name, wInfo, row, rootId, showDiff = false) {
+  if (_cells(rootId)[name]) {
+    updateWeightCell(name, wInfo, rootId, showDiff);
+    return;
+  }
+
+  const cell = document.createElement('div');
+  cell.className = 'w-cell';
+  cell.title = name;
+
+  const nameDiv  = document.createElement('div');
+  nameDiv.className = 'w-name';
+  nameDiv.textContent = shortName(name);
+
+  const shapeDiv = document.createElement('div');
+  shapeDiv.className = 'w-shape';
+  shapeDiv.textContent = `${wInfo.shape[0]} × ${wInfo.shape[1]}`;
+
+  const cvs = document.createElement('canvas');
+
+  const statsDiv = document.createElement('div');
+  statsDiv.className = 'w-stats';
+
+  const diffBadge = document.createElement('div');
+  diffBadge.className = 'diff-badge';
+  diffBadge.style.display = 'none';
+
+  cell.appendChild(nameDiv);
+  cell.appendChild(shapeDiv);
+  cell.appendChild(cvs);
+  cell.appendChild(statsDiv);
+  cell.appendChild(diffBadge);
+
+  // Click: always use the *current* wInfo stored in _rootCells (not the stale closure)
+  cell.addEventListener('click', () => openModal(name, _cells(rootId)[name].wInfo));
+  row.appendChild(cell);
+
+  _cells(rootId)[name] = { cell, canvas: cvs, statsDiv, diffBadge, wInfo };
+  renderHeatmap(cvs, wInfo.data, { maxPx: 120 });
+  statsDiv.innerHTML = fmtStats(wInfo.stats);
+}
+
+function updateWeightCell(name, wInfo, rootId, showDiff = false) {
+  const c = _cells(rootId)[name];
+  if (!c) return;
+  c.wInfo = wInfo;
+  if (showDiff && wInfo.diff) {
+    renderHeatmap(c.canvas, wInfo.diff, { maxPx: 120, diffMode: true, absMax: wInfo.diff_max });
+    c.diffBadge.style.display = 'inline-block';
+    c.diffBadge.textContent = `Δmax ${wInfo.diff_max.toExponential(2)}`;
+    c.cell.classList.add('updated');
+    setTimeout(() => c.cell.classList.remove('updated'), 800);
+  } else {
+    renderHeatmap(c.canvas, wInfo.data, { maxPx: 120 });
+    c.diffBadge.style.display = 'none';
+  }
+  c.statsDiv.innerHTML = fmtStats(wInfo.stats);
+}
+
+// ── Build the full weights grid ───────────────────────────────────────────────
+let _config = null;
+let _weightsData = {};
+
+function buildWeightsGrid(weights, rootId, showDiff = false) {
+  const root = document.getElementById(rootId);
+  _weightsData = weights;
+
+  // Group by section
+  const sections = {};
+  for (const [name, wInfo] of Object.entries(weights)) {
+    let sec;
+    if (name.startsWith('transformer.wte') || name.startsWith('transformer.wpe')) {
+      sec = '── 嵌入层 (Embeddings)';
+    } else if (name.startsWith('transformer.ln_f') || name === 'lm_head.weight') {
+      sec = '── 输出层 (Output)';
+    } else {
+      const m = name.match(/transformer\.h\.(\d+)\./);
+      sec = m ? `── Layer ${m[1]}` : '── 其他';
+    }
+    if (!sections[sec]) sections[sec] = [];
+    sections[sec].push([name, wInfo]);
+  }
+
+  // Sort sections so layers come in order
+  const secKeys = Object.keys(sections).sort((a, b) => {
+    const layerA = a.match(/Layer (\d+)/);
+    const layerB = b.match(/Layer (\d+)/);
+    if (layerA && layerB) return parseInt(layerA[1]) - parseInt(layerB[1]);
+    if (a.includes('嵌入')) return -1;
+    if (b.includes('嵌入')) return 1;
+    if (a.includes('输出')) return 1;
+    if (b.includes('输出')) return -1;
+    return 0;
+  });
+
+  for (const sec of secKeys) {
+    let sectionEl = root.querySelector(`[data-sec="${CSS.escape(sec)}"]`);
+    if (!sectionEl) {
+      sectionEl = document.createElement('div');
+      sectionEl.className = 'wg-section';
+      sectionEl.dataset.sec = sec;
+
+      const title = document.createElement('div');
+      title.className = 'wg-section-title';
+      title.textContent = sec;
+
+      const row = document.createElement('div');
+      row.className = 'wg-row';
+      row.dataset.row = sec;
+
+      sectionEl.appendChild(title);
+      sectionEl.appendChild(row);
+      root.appendChild(sectionEl);
+    }
+
+    const row = sectionEl.querySelector('.wg-row');
+    for (const [name, wInfo] of sections[sec]) {
+      buildWeightCell(name, wInfo, row, rootId, showDiff);
+    }
+  }
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+let _modalName = null;
+
+function openModal(name, wInfo) {
+  _modalName = name;
+  document.getElementById('modal-title').textContent = name;
+  document.getElementById('modal-stats').innerHTML = fmtStats(wInfo.stats);
+
+  const cvs = document.getElementById('modal-canvas');
+  renderHeatmap(cvs, wInfo.data, { maxPx: Math.min(600, window.innerWidth * 0.8) });
+
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal')) return;
+  document.getElementById('modal').classList.remove('open');
+  _modalName = null;
+}
+
+// ── Loss chart ────────────────────────────────────────────────────────────────
+const _losses = [];
+
+function appendLoss(step, loss) {
+  _losses.push({ step, loss });
+  drawLossChart();
+}
+
+function drawLossChart() {
+  const cvs = document.getElementById('loss-chart');
+  const W = cvs.width, H = cvs.height;
+  const ctx = cvs.getContext('2d');
+  const PAD = { top: 16, right: 20, bottom: 32, left: 52 };
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#161b22';
+  ctx.fillRect(0, 0, W, H);
+
+  if (_losses.length < 2) return;
+
+  const xs = _losses.map(d => d.step);
+  const ys = _losses.map(d => d.loss);
+  const xMin = xs[0], xMax = xs[xs.length - 1];
+  const yMin = Math.min(...ys) * 0.95;
+  const yMax = Math.max(...ys) * 1.05;
+
+  const toX = s => PAD.left + (s - xMin) / (xMax - xMin + 1e-9) * (W - PAD.left - PAD.right);
+  const toY = l => H - PAD.bottom - (l - yMin) / (yMax - yMin + 1e-9) * (H - PAD.top - PAD.bottom);
+
+  // Grid lines
+  ctx.strokeStyle = '#21262d';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = PAD.top + i * (H - PAD.top - PAD.bottom) / 5;
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
+    const lv = yMax - i * (yMax - yMin) / 5;
+    ctx.fillStyle = '#8b949e'; ctx.font = '10px monospace'; ctx.textAlign = 'right';
+    ctx.fillText(lv.toFixed(3), PAD.left - 6, y + 3);
+  }
+
+  // Axes labels
+  ctx.fillStyle = '#8b949e'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(`step ${xMin}`, toX(xMin), H - 6);
+  ctx.fillText(`step ${xMax}`, toX(xMax), H - 6);
+
+  // Loss line
+  ctx.strokeStyle = '#58a6ff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  _losses.forEach((d, i) => {
+    const x = toX(d.step), y = toY(d.loss);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Latest dot
+  const last = _losses[_losses.length - 1];
+  ctx.fillStyle = '#58a6ff';
+  ctx.beginPath(); ctx.arc(toX(last.step), toY(last.loss), 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c9d1d9'; ctx.font = '11px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(`loss ${last.loss.toFixed(4)}`, toX(last.step) + 6, toY(last.loss) + 4);
+}
+
+// ── Training ──────────────────────────────────────────────────────────────────
+let _evtSource = null;
+
+function startTraining() {
+  const file  = document.getElementById('train-file').value.trim();
+  const steps = parseInt(document.getElementById('train-steps').value);
+  const lr    = parseFloat(document.getElementById('train-lr').value);
+  const wevery = parseInt(document.getElementById('train-wevery').value);
+
+  if (!file) { setStatus('请填写训练文本文件路径', 'err'); return; }
+
+  _losses.length = 0;
+  document.getElementById('training-weights-root').innerHTML = '';
+  delete _rootCells['training-weights-root'];  // only reset training grid, keep weights tab
+
+  document.getElementById('btn-train').style.display = 'none';
+  document.getElementById('btn-stop').style.display  = '';
+  document.getElementById('train-status-block').style.display = '';
+  showTab('training');
+  setStatus('训练中…', 'info');
+
+  fetch('/api/train', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input_file: file, steps, lr, weight_every: wevery }),
+  }).then(res => {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    function read() {
+      reader.read().then(({ done, value }) => {
+        if (done) { onTrainDone(); return; }
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split('\n\n');
+        buf = parts.pop();
+        for (const part of parts) {
+          const line = part.replace(/^data: /, '').trim();
+          if (!line) continue;
+          try { onTrainEvent(JSON.parse(line)); } catch {}
+        }
+        read();
+      });
+    }
+    read();
+  }).catch(e => { setStatus('连接失败: ' + e, 'err'); onTrainDone(); });
+}
+
+function onTrainEvent(ev) {
+  if (ev.type === 'error') { setStatus('错误: ' + ev.message, 'err'); return; }
+  if (ev.type === 'step') {
+    appendLoss(ev.step, ev.loss);
+    document.getElementById('train-step-info').textContent =
+      `Step ${ev.step}  ·  Loss ${ev.loss.toFixed(4)}`;
+    if (ev.weights) {
+      buildWeightsGrid(ev.weights, 'training-weights-root', true);
+      buildWeightsGrid(ev.weights, 'weights-root', false);
+    }
+  }
+  if (ev.type === 'done') {
+    setStatus(`训练完成 ${ev.total_steps} 步`, 'ok');
+    onTrainDone();
+  }
+}
+
+function onTrainDone() {
+  document.getElementById('btn-train').style.display = '';
+  document.getElementById('btn-stop').style.display  = 'none';
+}
+
+function stopTraining() {
+  fetch('/api/stop', { method: 'POST' });
+  onTrainDone();
+  setStatus('已停止', 'info');
+}
+
+// ── Inference ─────────────────────────────────────────────────────────────────
+const OP_LABELS = {
+  c_attn:      'c_attn  QKV投影  (T×C → T×3C)',
+  qk:          'qk  注意力分数  Q@Kᵀ  (T×d → T×T)',
+  av:          'av  注意力加权  att@V  (T×T → T×d)',
+  c_proj_attn: 'c_proj_attn  输出投影  (T×C → T×C)',
+  c_fc:        'c_fc  MLP升维  (T×C → T×4C)',
+  c_proj_mlp:  'c_proj_mlp  MLP降维  (T×4C → T×C)',
+  lm_head:     'lm_head  词表投影  (T×C → T×vocab)',
+};
+
+function runInference() {
+  const prompt = document.getElementById('infer-prompt').value;
+  if (!prompt) { setStatus('请输入 prompt', 'err'); return; }
+
+  setStatus('推理中…', 'info');
+  showTab('inference');
+  document.getElementById('inference-root').innerHTML = '<div style="color:var(--dim);padding:20px">推理中…</div>';
+
+  fetch('/api/infer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { setStatus('错误: ' + data.error, 'err'); return; }
+      renderInference(data);
+      setStatus(`推理完成  ·  prompt "${prompt}"  ·  预测下一个 token: "${data.predictions[0].char}"`, 'ok');
+    })
+    .catch(e => setStatus('推理失败: ' + e, 'err'));
+}
+
+function renderInference(data) {
+  const root = document.getElementById('inference-root');
+  root.innerHTML = '';
+
+  // Token strip
+  const strip = document.createElement('div');
+  strip.className = 'token-strip';
+  data.tokens.forEach((ch, idx) => {
+    const t = document.createElement('div');
+    t.className = 'token prompt';
+    t.textContent = ch === ' ' ? '·' : ch;
+    t.title = `"${ch}"  id=${data.token_ids[idx]}`;
+    strip.appendChild(t);
+  });
+  root.appendChild(strip);
+
+  // Group layers by layer_idx
+  const byLayer = {};
+  for (const rec of data.layers) {
+    const key = rec.layer_idx === -1 ? 'lm_head' : `layer_${rec.layer_idx}`;
+    if (!byLayer[key]) byLayer[key] = [];
+    byLayer[key].push(rec);
+  }
+
+  for (const [key, recs] of Object.entries(byLayer)) {
+    const lb = document.createElement('div');
+    lb.className = 'layer-block';
+
+    const header = document.createElement('div');
+    header.className = 'layer-header';
+    const isLMH = key === 'lm_head';
+    header.innerHTML = `
+      <span class="layer-label">${isLMH ? 'lm_head' : 'Layer ' + recs[0].layer_idx}</span>
+      <span class="op-label">${recs.map(r => r.op_name).join(' · ')}</span>
+    `;
+    header.addEventListener('click', () => {
+      body.style.display = body.style.display === 'none' ? '' : 'none';
+    });
+
+    const body = document.createElement('div');
+    body.className = 'layer-body';
+
+    for (const rec of recs) {
+      // Input matrix
+      const inCell = makeActCell(
+        `${rec.op_name} 输入`, rec.in_shape, rec.in_data, rec.in_stats, rec.op_name === 'av'
+      );
+      body.appendChild(inCell);
+
+      // Output matrix
+      const outCell = makeActCell(
+        `${rec.op_name} 输出`, rec.out_shape, rec.out_data, rec.out_stats, false
+      );
+      body.appendChild(outCell);
+    }
+
+    lb.appendChild(header);
+    lb.appendChild(body);
+    root.appendChild(lb);
+  }
+
+  // Predictions
+  const predTitle = document.createElement('div');
+  predTitle.style.cssText = 'font-size:12px;font-weight:600;color:var(--accent);margin:20px 0 8px';
+  predTitle.textContent = `预测下一个 token（Top ${data.predictions.length}）`;
+  root.appendChild(predTitle);
+
+  const predList = document.createElement('div');
+  predList.className = 'pred-list';
+  const maxProb = data.predictions[0].prob;
+  for (const pred of data.predictions) {
+    const row = document.createElement('div');
+    row.className = 'pred-item';
+    row.innerHTML = `
+      <div class="pred-char">${pred.char === ' ' ? '·' : (pred.char || '?')}</div>
+      <div class="pred-bar-bg"><div class="pred-bar" style="width:${(pred.prob / maxProb * 100).toFixed(1)}%"></div></div>
+      <div class="pred-pct">${(pred.prob * 100).toFixed(1)}%</div>
+      <div style="color:var(--dim);font-size:11px;width:70px">logit ${pred.logit.toFixed(2)}</div>
+    `;
+    predList.appendChild(row);
+  }
+  root.appendChild(predList);
+}
+
+function makeActCell(label, shape, data2d, stats, isAttention) {
+  const cell = document.createElement('div');
+  cell.className = 'act-cell';
+
+  const l = document.createElement('div');
+  l.className = 'act-label';
+  l.textContent = label;
+
+  const s = document.createElement('div');
+  s.className = 'act-shape';
+  s.textContent = `${shape[0]} × ${shape[1]}`;
+
+  const cvs = document.createElement('canvas');
+  renderHeatmap(cvs, data2d, { maxPx: isAttention ? 120 : 180 });
+
+  const st = document.createElement('div');
+  st.className = 'w-stats';
+  st.innerHTML = fmtStats(stats);
+
+  cell.appendChild(l);
+  cell.appendChild(s);
+  cell.appendChild(cvs);
+  cell.appendChild(st);
+  return cell;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  // Load config
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    _config = cfg;
+    const grid = document.getElementById('cfg-grid');
+    const items = [
+      ['n_layer', cfg.n_layer],
+      ['n_head', cfg.n_head],
+      ['n_embd', cfg.n_embd],
+      ['vocab', cfg.vocab_size],
+      ['block', cfg.block_size],
+      ['device', cfg.device],
+    ];
+    grid.innerHTML = items.map(([k, v]) =>
+      `<div class="cfg-item"><div class="k">${k}</div><div class="v">${v}</div></div>`
+    ).join('');
+    setStatus(`模型已加载  ·  n_layer=${cfg.n_layer}  n_embd=${cfg.n_embd}  vocab=${cfg.vocab_size}`, 'ok');
+  } catch (e) {
+    setStatus('无法加载配置: ' + e, 'err');
+  }
+
+  // Load weights
+  try {
+    setStatus('正在加载权重…', 'info');
+    const weights = await fetch('/api/weights').then(r => r.json());
+    buildWeightsGrid(weights, 'weights-root', false);
+    setStatus('权重加载完成', 'ok');
+  } catch (e) {
+    setStatus('权重加载失败: ' + e, 'err');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

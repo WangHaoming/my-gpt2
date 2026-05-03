@@ -3,6 +3,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import torch
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -75,6 +76,10 @@ def main() -> None:
     # AdamW 是 Adam 的改进版，加入了权重衰减（L2 正则化），适合训练 Transformer
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
+    # ── TensorBoard ───────────────────────────────────────────────────────────
+    # 日志写入 runs/<out_dir>，运行 `tensorboard --logdir runs` 查看
+    writer = SummaryWriter(log_dir=Path("runs") / args.out_dir.name)
+
     # ── 训练循环 ──────────────────────────────────────────────────────────────
     model.train()  # 切换到训练模式，启用 dropout 等训练时行为
     step = 0
@@ -94,6 +99,9 @@ def main() -> None:
             loss.backward()    # 反向传播：计算 loss 对所有参数的梯度
             optimizer.step()   # 用梯度更新参数
 
+            # 把当前 loss 写入 TensorBoard（标量，X 轴为 step）
+            writer.add_scalar("train/loss", loss.item(), step)
+
             step += 1
             progress.update(1)
             progress.set_postfix(loss=f"{loss.item():.4f}")  # 在进度条右侧实时显示 loss
@@ -102,6 +110,7 @@ def main() -> None:
                 break  # 达到目标步数后提前退出当前 epoch
 
     progress.close()
+    writer.close()  # 确保所有日志刷写到磁盘
 
     # ── 保存 checkpoint ───────────────────────────────────────────────────────
     args.out_dir.mkdir(parents=True, exist_ok=True)  # 递归创建目录，已存在不报错

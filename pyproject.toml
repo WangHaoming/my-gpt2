@@ -7,6 +7,9 @@ requires-python = ">=3.10"
 dependencies = [
   "torch>=2.2",
   "tqdm>=4.66",
+  "tensorboard>=2.14",
+  "matplotlib>=3.7",
+  "flask>=3.0",
 ]
 
 [project.optional-dependencies]

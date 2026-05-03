@@ -19,5 +19,24 @@
         "PYTHONPATH": "${workspaceFolder}/src"
       }
     }
+    ,
+    {
+      "name": "Generate from checkpoint",
+      "type": "python",
+      "request": "launch",
+      "module": "my_gpt2.generate",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "--checkpoint",
+        "checkpoints/latest.pt",
+        "--prompt",
+        "hello"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    }
   ]
 }

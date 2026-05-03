@@ -1,3 +1,31 @@
+"""
+GPT-2 模型实现
+
+架构概览（从底层到顶层）：
+  CausalSelfAttention  —— 因果自注意力，token 只能看过去
+  MLP                  —— 前馈网络，对每个 token 做非线性变换
+  Block                —— 一层 Transformer = Attention + MLP（各带 LayerNorm + 残差）
+  GPT2                 —— 完整模型：Embedding → N×Block → LayerNorm → LM Head
+
+训练时的主调用链：
+  GPT2.forward(idx, targets)
+    ├─ wte(idx) + wpe(pos)          # token 嵌入 + 位置嵌入
+    ├─ for block in h:
+    │    Block.forward(x)
+    │      ├─ CausalSelfAttention.forward(ln_1(x))   # 注意力子层
+    │      └─ MLP.forward(ln_2(x))                   # FFN 子层
+    ├─ ln_f(x)                      # 最终归一化
+    ├─ lm_head(x) → logits          # 输出词表预测分数
+    └─ cross_entropy(logits, targets) → loss
+
+推理时的主调用链：
+  GPT2.generate(idx, max_new_tokens)
+    └─ 循环 max_new_tokens 次：
+         ├─ GPT2.forward(idx_cond)  # 只用最后一个位置的 logits
+         ├─ top-k 采样 + softmax
+         └─ 拼接新 token 到序列末尾
+"""
+
 import math
 
 import torch
@@ -17,6 +45,7 @@ class CausalSelfAttention(nn.Module):
         self.dropout = config.dropout  # dropout 概率
 
         # 一个线性层同时生成 Q、K、V 三个矩阵，输出维度是输入的 3 倍
+        # 这里 Q、K、V三个向量跟嵌入维度保持一致
         # 输入: (batch, seq_len, n_embd) → 输出: (batch, seq_len, 3 * n_embd)
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
 
@@ -33,6 +62,8 @@ class CausalSelfAttention(nn.Module):
         mask = torch.tril(torch.ones(config.block_size, config.block_size))
         self.register_buffer("bias", mask.view(1, 1, config.block_size, config.block_size))
 
+
+    
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x 形状: (batch_size, seq_len, n_embd)
         batch_size, seq_len, channels = x.size()
@@ -42,7 +73,7 @@ class CausalSelfAttention(nn.Module):
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
 
         # 每个注意力头负责的维度大小
-        head_dim = channels // self.n_head  # 例如 16 / 2 = 8
+        head_dim = channels // self.n_head  # 例如 16 / 2 = 8  128 / 2 = 64
 
         # 把 n_embd 维度拆分成 (n_head, head_dim)，再转置让 head 维度在前
         # 变换: (batch, seq_len, n_embd) → (batch, seq_len, n_head, head_dim) → (batch, n_head, seq_len, head_dim)
@@ -99,7 +130,11 @@ class MLP(nn.Module):
 
 
 class Block(nn.Module):
-    """一个完整的 Transformer Block = LayerNorm + 自注意力 + LayerNorm + MLP，每步都有残差连接"""
+    """
+    一个完整的 Transformer Block，内部调用顺序：
+      x → ln_1 → CausalSelfAttention → + x  （注意力子层 + 残差）
+        → ln_2 → MLP               → + x  （FFN 子层 + 残差）
+    """
 
     def __init__(self, config: GPTConfig) -> None:
         super().__init__()
@@ -117,7 +152,21 @@ class Block(nn.Module):
 
 
 class GPT2(nn.Module):
-    """完整的 GPT-2 语言模型"""
+    """
+    完整的 GPT-2 语言模型。
+
+    初始化顺序（__init__）：
+      1. 构建 transformer（wte, wpe, drop, h×N, ln_f）
+      2. 构建 lm_head（线性投影到词表）
+      3. 共享 wte 与 lm_head 的权重矩阵
+      4. 调用 _init_weights 初始化所有参数
+
+    前向传播（forward）：
+      idx → wte+wpe → drop → N×Block → ln_f → lm_head → logits [→ loss]
+
+    文本生成（generate）：
+      自回归循环调用 forward，每次追加一个新 token
+    """
 
     def __init__(self, config: GPTConfig) -> None:
         super().__init__()

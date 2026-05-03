@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", type=str, required=True)
 
     # --max-new-tokens：最多续写多少个字符（token）
-    parser.add_argument("--max-new-tokens", type=int, default=80)
+    parser.add_argument("--max-new-tokens", type=int, default=20)
 
     # --temperature：采样温度，控制生成的随机程度
     #   < 1.0：更保守，倾向高概率 token，输出更确定
