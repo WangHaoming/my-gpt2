@@ -127,6 +127,7 @@ canvas { image-rendering: pixelated; }
 .bias-line { font-size: 15px; margin: 4px 0; }
 .bias-line b { font-family: 'SF Mono', Consolas, monospace; font-size: 20px; color: var(--accent); }
 .btn.small { padding: 3px 12px; font-size: 12px; }
+.lang-btn { position: fixed; top: 14px; right: 16px; z-index: 50; }
 .train-summary { display: none; margin-top: 16px; padding: 12px 16px; border: 1px solid var(--green); border-radius: 8px; color: var(--green); background: rgba(63,185,80,.08); }
 .train-summary.show { display: block; }
 
@@ -163,31 +164,32 @@ canvas { image-rendering: pixelated; }
 </style>
 </head>
 <body>
+<button class="btn small lang-btn" id="btn-lang">English</button>
 <div class="page">
 
   <div class="hero">
-    <h1>机器是怎么"学会"认字的？</h1>
-    <p>一个能在你浏览器里现场训练的迷你神经网络。<br>不用安装任何东西，往下滚动，跟着 5 个步骤走一遍。</p>
+    <h1 data-i18n="hero-h1">机器是怎么"学会"认字的？</h1>
+    <p data-i18n="hero-sub">一个能在你浏览器里现场训练的迷你神经网络。<br>不用安装任何东西，往下滚动，跟着 5 个步骤走一遍。</p>
   </div>
 
   <!-- ═══ 步骤 1 ═══ -->
   <div class="step-card">
-    <div class="step-head"><div class="step-num">1</div><h2>教材：给机器看的例子</h2></div>
-    <p>人教小孩认数字，是拿卡片一张张指给他看："这是 3，这是 7。"教机器也一样——下面是我们准备的
+    <div class="step-head"><div class="step-num">1</div><h2 data-i18n="s1-title">教材：给机器看的例子</h2></div>
+    <p data-i18n="s1-p">人教小孩认数字，是拿卡片一张张指给他看："这是 3，这是 7。"教机器也一样——下面是我们准备的
        <b>6000 张"卡片"</b>，每张都是真人手写的数字，并且标好了正确答案（库里还备着 6000 张，
        步骤 3 可以做"教材翻倍"实验）。机器要学的，就是从这些例子里找规律。</p>
     <div class="gallery" id="gallery"></div>
-    <button class="btn" id="btn-shuffle">🔀 换一批看看</button>
-    <p class="note" style="margin-top:14px">注意：机器看到的不是"图"，而是 14×14=196 个表示深浅的数字。它只会算数，不会"看"。</p>
+    <button class="btn" id="btn-shuffle" data-i18n="btn-shuffle">🔀 换一批看看</button>
+    <p class="note" style="margin-top:14px" data-i18n="s1-note">注意：机器看到的不是"图"，而是 14×14=196 个表示深浅的数字。它只会算数，不会"看"。</p>
   </div>
 
   <!-- ═══ 步骤 2 ═══ -->
   <div class="step-card">
-    <div class="step-head"><div class="step-num">2</div><h2>训练之前：它只会瞎猜</h2></div>
-    <p>这个网络长这样——图片的 196 个格子从左边进去，经过中间一层"打分小组"，右边给 0~9 各打一个分，
+    <div class="step-head"><div class="step-num">2</div><h2 data-i18n="s2-title">训练之前：它只会瞎猜</h2></div>
+    <p data-i18n="s2-p1">这个网络长这样——图片的 196 个格子从左边进去，经过中间一层"打分小组"，右边给 0~9 各打一个分，
        分最高的就是它的答案：</p>
     <div class="diagram-wrap"><canvas id="net-diagram" width="720" height="300"></canvas></div>
-    <p>网络里一共有 <b>13,258 个可以拧的"小旋钮"</b>（术语叫参数），旋钮决定每根连线的重要程度。
+    <p data-i18n="s2-p2">网络里一共有 <b>13,258 个可以拧的"小旋钮"</b>（术语叫参数），旋钮决定每根连线的重要程度。
        刚出厂时，每个旋钮都停在随机位置——所以它的回答完全是乱猜的。
        下面 8 道题，看看它现在能对几道（瞎猜平均只能对 1 道左右）：</p>
     <div class="samples" id="samples"></div>
@@ -196,20 +198,20 @@ canvas { image-rendering: pixelated; }
 
   <!-- ═══ 步骤 3 ═══ -->
   <div class="step-card">
-    <div class="step-head"><div class="step-num">3</div><h2>开始学习：一道题一道题地改</h2></div>
-    <p>机器"刷题"的方法：每次拿 32 张卡片，先自己猜，再对答案；猜错了，就把导致出错的旋钮往正确方向
+    <div class="step-head"><div class="step-num">3</div><h2 data-i18n="s3-title">开始学习：一道题一道题地改</h2></div>
+    <p data-i18n="s3-p">机器"刷题"的方法：每次拿 32 张卡片，先自己猜，再对答案；猜错了，就把导致出错的旋钮往正确方向
        <b>拧一点点</b>。想看清每一步，点「学一步」；想直接看结果，点「开始学习」快进。</p>
     <div class="lab-panel">
-      <div class="lab-title">改进实验室：下面四招都能让它学得更好。勾选后训练，成绩自动记入对比表——试试关掉几个再训，看看差多少。（改动开关会自动重新开始）</div>
-      <label><input type="checkbox" id="opt-data"><b>教材翻倍</b> <span class="why">—— 从 6000 张翻倍到 12000 张卡片</span></label>
-      <label><input type="checkbox" id="opt-momentum"><b>惯性下坡（动量）</b> <span class="why">—— 连续几步方向一致就越走越快，抵消单批例题的"任性"</span></label>
-      <label><input type="checkbox" id="opt-decay"><b>先大步后小步</b> <span class="why">—— 刚开始大胆拧，快学完时改成细细微调</span></label>
-      <label><input type="checkbox" id="opt-aug"><b>卡片随机挪一格</b> <span class="why">—— 每次看卡片前随机平移一点，免费变出更多"新写法"</span></label>
+      <div class="lab-title" data-i18n="lab-title">改进实验室：下面四招都能让它学得更好。勾选后训练，成绩自动记入对比表——试试关掉几个再训，看看差多少。（改动开关会自动重新开始）</div>
+      <label><input type="checkbox" id="opt-data"><span data-i18n="lab-data"><b>教材翻倍</b> <span class="why">—— 从 6000 张翻倍到 12000 张卡片</span></span></label>
+      <label><input type="checkbox" id="opt-momentum"><span data-i18n="lab-mom"><b>惯性下坡（动量）</b> <span class="why">—— 连续几步方向一致就越走越快，抵消单批例题的"任性"</span></span></label>
+      <label><input type="checkbox" id="opt-decay"><span data-i18n="lab-decay"><b>先大步后小步</b> <span class="why">—— 刚开始大胆拧，快学完时改成细细微调</span></span></label>
+      <label><input type="checkbox" id="opt-aug"><span data-i18n="lab-aug"><b>卡片随机挪一格</b> <span class="why">—— 每次看卡片前随机平移一点，免费变出更多"新写法"</span></span></label>
     </div>
     <div class="train-controls">
-      <button class="btn" id="btn-step">👣 学一步</button>
+      <button class="btn" id="btn-step" data-i18n="btn-step">👣 学一步</button>
       <button class="btn primary" id="btn-train">▶ 开始学习（几秒钟）</button>
-      <button class="btn" id="btn-reset">🔄 重新开始</button>
+      <button class="btn" id="btn-reset" data-i18n="btn-reset">🔄 重新开始</button>
     </div>
 
     <div class="stepbox" id="stepbox">
@@ -217,90 +219,90 @@ canvas { image-rendering: pixelated; }
         <div class="cell">
           <canvas class="digit" id="step-digit" width="14" height="14"></canvas>
           <div class="guess-line" id="step-guess"></div>
-          <div class="cap">这一步 32 张卡片中的第 1 张</div>
+          <div class="cap" data-i18n="step-digit-cap">这一步 32 张卡片中的第 1 张</div>
         </div>
         <div class="cell" style="flex:1; min-width:260px">
           <div class="seg">
-            <button id="delta-mode-mag" class="on">幅度</button>
-            <button id="delta-mode-dir">方向</button>
+            <button id="delta-mode-mag" class="on" data-i18n="seg-mag">幅度</button>
+            <button id="delta-mode-dir" data-i18n="seg-dir">方向</button>
           </div>
           <div class="wgrid" id="delta-grid"></div>
-          <div class="cap" style="max-width:none" id="delta-cap">旋钮的变化量——亮的地方就是这一步被拧动的旋钮（64 个打分小组各一张图）</div>
+          <div class="cap" style="max-width:none" id="delta-cap" data-i18n="delta-cap-base">旋钮的变化量——亮的地方就是这一步被拧动的旋钮（64 个打分小组各一张图）</div>
         </div>
       </div>
     </div>
 
     <div class="train-stats">
-      <div class="stat"><div class="k">已刷题量（同一张卡片会被反复刷 20 遍）</div><div class="v mono" id="stat-steps">0 张次</div></div>
-      <div class="stat"><div class="k">考试成绩（500 张它从没见过的新图）</div><div class="v mono green" id="stat-acc">--</div></div>
+      <div class="stat"><div class="k" data-i18n="stat-steps-k">已刷题量（同一张卡片会被反复刷 20 遍）</div><div class="v mono" id="stat-steps">0 张次</div></div>
+      <div class="stat"><div class="k" data-i18n="stat-acc-k">考试成绩（500 张它从没见过的新图）</div><div class="v mono green" id="stat-acc">--</div></div>
     </div>
 
-    <div class="chart-title">犯错程度（越低越好）</div>
+    <div class="chart-title" data-i18n="chart-loss-title">犯错程度（越低越好）</div>
     <canvas id="loss-chart" width="796" height="220"></canvas>
 
-    <div class="chart-title">中间那 64 个"打分小组"各自在关注什么——训练前是随机雪花，训练后会浮现笔画的影子，规律就存在这些旋钮里。
-      点击任意一张可以查看具体数值。
-      <button class="btn small" id="btn-output-params" style="margin-left:8px">查看输出层参数</button>
+    <div class="chart-title"><span data-i18n="chart-weights-title">中间那 64 个"打分小组"各自在关注什么——训练前是随机雪花，训练后会浮现笔画的影子，规律就存在这些旋钮里。
+      点击任意一张可以查看具体数值。</span>
+      <button class="btn small" id="btn-output-params" style="margin-left:8px" data-i18n="btn-output-params">查看输出层参数</button>
     </div>
     <div class="wgrid" id="weight-grid"></div>
 
     <div class="train-summary" id="train-summary"></div>
 
     <div id="runs-wrap" style="display:none">
-      <div class="chart-title" style="margin-top:20px">成绩对比——每训练完一轮自动记一行</div>
+      <div class="chart-title" style="margin-top:20px" data-i18n="runs-title">成绩对比——每训练完一轮自动记一行</div>
       <table class="runs-table" id="runs-table"></table>
     </div>
   </div>
 
   <!-- ═══ 步骤 4 ═══ -->
   <div class="step-card">
-    <div class="step-head"><div class="step-num">4</div><h2>该你出题了：写一个数字考考它</h2></div>
-    <p>用鼠标（或手指）在黑板上写一个 0~9 的数字。你的字迹它<b>百分之百没见过</b>——如果它还能认出来，
+    <div class="step-head"><div class="step-num">4</div><h2 data-i18n="s4-title">该你出题了：写一个数字考考它</h2></div>
+    <p data-i18n="s4-p">用鼠标（或手指）在黑板上写一个 0~9 的数字。你的字迹它<b>百分之百没见过</b>——如果它还能认出来，
        就说明那 1.3 万个旋钮里真的存下了"数字长什么样"的规律。</p>
     <div class="draw-row">
       <div class="draw-side">
         <canvas id="draw-board" width="280" height="280"></canvas>
         <div style="display:flex; gap:10px; align-items:center">
-          <button class="btn" id="btn-clear">🧹 清空</button>
+          <button class="btn" id="btn-clear" data-i18n="btn-clear">🧹 清空</button>
           <canvas id="seen-canvas" width="14" height="14" title="机器实际看到的样子"></canvas>
-          <span class="note">← 机器实际看到的<br>14×14 版本</span>
+          <span class="note" data-i18n="seen-note">← 机器实际看到的<br>14×14 版本</span>
         </div>
         <label class="note" style="cursor:pointer; max-width:280px">
-          <input type="checkbox" id="opt-center" checked style="accent-color:#1f6feb; margin-right:4px">自动把字裁剪、居中后再给机器看<br>
-          <span style="color:var(--yellow)">做个实验：关掉它，在角落写个数字——你会发现机器立刻不认识了。因为它的每个"模板"都绑定着固定位置，位置也是特征的一部分。开关切换会立即用当前笔迹重新识别，可对比。</span>
+          <input type="checkbox" id="opt-center" checked style="accent-color:#1f6feb; margin-right:4px"><span data-i18n="center-label">自动把字裁剪、居中后再给机器看<br>
+          <span style="color:var(--yellow)">做个实验：关掉它，在角落写个数字——你会发现机器立刻不认识了。因为它的每个"模板"都绑定着固定位置，位置也是特征的一部分。开关切换会立即用当前笔迹重新识别，可对比。</span></span>
         </label>
       </div>
       <div class="hidden-side">
-        <div class="note">中间结果：64 个打分小组<br>各自的兴奋程度<br>（点击查看具体数值）</div>
+        <div class="note" data-i18n="hidden-note-1">中间结果：64 个打分小组<br>各自的兴奋程度<br>（点击查看具体数值）</div>
         <canvas id="hidden-map" width="8" height="8" title="隐藏层的 64 个中间结果，点击查看数值"></canvas>
-        <div class="note" id="hidden-note">排列与步骤 3 的<br>64 张模板一一对应</div>
+        <div class="note" id="hidden-note" data-i18n="hidden-note-2">排列与步骤 3 的<br>64 张模板一一对应</div>
       </div>
       <div class="pred-panel">
         <div id="pred-title">在黑板上写一个数字试试</div>
         <div id="pred-bars"></div>
-        <div id="untrained-warn">它还没学习，现在是瞎猜的——回到步骤 3 点「开始学习」，再回来试试。</div>
+        <div id="untrained-warn" data-i18n="untrained-warn">它还没学习，现在是瞎猜的——回到步骤 3 点「开始学习」，再回来试试。</div>
       </div>
     </div>
   </div>
 
   <!-- ═══ 步骤 5 ═══ -->
   <div class="step-card">
-    <div class="step-head"><div class="step-num">5</div><h2>你刚才看到的，就是 ChatGPT 的原理</h2></div>
-    <p>刚才这个小网络和 ChatGPT 这类"大模型"，本质上是同一件事，只是三个数字不一样：</p>
-    <table class="cmp-table">
+    <div class="step-head"><div class="step-num">5</div><h2 data-i18n="s5-title">你刚才看到的，就是 ChatGPT 的原理</h2></div>
+    <p data-i18n="s5-p1">刚才这个小网络和 ChatGPT 这类"大模型"，本质上是同一件事，只是三个数字不一样：</p>
+    <table class="cmp-table" data-i18n="s5-table">
       <tr><th></th><th>这个小演示</th><th>ChatGPT 这样的大模型</th></tr>
       <tr><td>看的例子</td><td>6000~12000 张手写数字</td><td>几乎整个互联网的文字</td></tr>
       <tr><td>旋钮（参数）数量</td><td>1.3 万个</td><td>上千亿个</td></tr>
       <tr><td>学的任务</td><td>看图 → 猜是哪个数字</td><td>看前文 → 猜下一个字是什么</td></tr>
     </table>
-    <div class="flow">
+    <div class="flow" data-i18n="s5-flow">
       <div class="row"><span class="tag">本页演示</span><span class="box">随机旋钮</span><span class="arrow">→</span><span class="box">🔁 看卡片 · 对答案 · 拧旋钮</span><span class="arrow">→</span><span class="box">会认新字迹的旋钮</span></div>
       <div class="row"><span class="tag">大模型</span><span class="box">随机旋钮</span><span class="arrow">→</span><span class="box">🔁 看文字 · 对答案 · 拧旋钮</span><span class="arrow">→</span><span class="box">会答新问题的旋钮</span></div>
     </div>
-    <p style="margin-top:16px">训练的过程一模一样：一开始旋钮全是随机的，输出是胡言乱语；然后拿海量例子反复
+    <p style="margin-top:16px" data-i18n="s5-p2">训练的过程一模一样：一开始旋钮全是随机的，输出是胡言乱语；然后拿海量例子反复
        "猜 → 对答案 → 拧旋钮"；最后规律都存进了旋钮里。你问 ChatGPT 一个它从没见过的问题，它能回答，
        和刚才它认出你从没给它看过的字迹，是<b>同一种能力</b>——从例子里学到规律，再用到新东西上。</p>
-    <p class="closing">所谓"人工智能"，并没有魔法：<br>就是很多很多旋钮，加上很多很多例子，加上"错了就拧一点"的耐心。</p>
+    <p class="closing" data-i18n="s5-closing">所谓"人工智能"，并没有魔法：<br>就是很多很多旋钮，加上很多很多例子，加上"错了就拧一点"的耐心。</p>
   </div>
 
 </div>
@@ -320,6 +322,11 @@ canvas { image-rendering: pixelated; }
 <script src="mnist_data.js"></script>
 <script>
 'use strict';
+
+// ── 中英文切换（语言状态提前定义，供所有渲染函数使用）──────────────────────────
+let lang = 'zh';
+try { lang = localStorage.getItem('digitdemo-lang') || 'zh'; } catch (e) {}
+function EN() { return lang === 'en'; }
 
 // ── 数据解码 ──────────────────────────────────────────────────────────────────
 // mnist_data.js 里是 base64 的 uint8 字节；图像按行主序平铺，每张 196 字节。
@@ -612,8 +619,10 @@ function renderDeltaGrid() {
   const mag = deltaMode === 'mag';
   for (let j = 0; j < HIDDEN; j++) renderWeightImage(deltaCanvases[j], lastDW1, j, mag, m);
   document.getElementById('delta-cap').textContent = mag
-    ? '旋钮的变化量——亮的地方就是这一步被拧动的旋钮（64 个打分小组各一张图）'
-    : '旋钮的变化方向——红=被调大（把这批卡片的形状往模板里刻），蓝=被调小（往外铲）';
+    ? (EN() ? 'How much each knob moved — bright spots were twisted this step (one image per scoring crew)'
+            : '旋钮的变化量——亮的地方就是这一步被拧动的旋钮（64 个打分小组各一张图）')
+    : (EN() ? 'Direction of change — red = turned up (carving this batch\'s shapes into the template), blue = turned down (scraping them out)'
+            : '旋钮的变化方向——红=被调大（把这批卡片的形状往模板里刻），蓝=被调小（往外铲）');
 }
 function setDeltaMode(mode) {
   deltaMode = mode;
@@ -634,7 +643,8 @@ function drawLossChart() {
   ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
   if (losses.length < 2) {
     ctx.fillStyle = '#8b949e'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('点「学一步」或「开始学习」，这里会画出犯错程度的变化', W / 2, H / 2);
+    ctx.fillText(EN() ? 'Click "One step" or "Start learning" — the error curve will appear here'
+                      : '点「学一步」或「开始学习」，这里会画出犯错程度的变化', W / 2, H / 2);
     return;
   }
   const xMin = losses[0].step, xMax = losses[losses.length - 1].step;
@@ -651,8 +661,8 @@ function drawLossChart() {
     ctx.fillText((yMax - i * (yMax - yMin) / 4).toFixed(2), PAD.left - 6, y + 3);
   }
   ctx.fillStyle = '#8b949e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('刚开始', toX(xMin), H - 8);
-  ctx.fillText(`第 ${xMax} 批`, toX(xMax), H - 8);
+  ctx.fillText(EN() ? 'start' : '刚开始', toX(xMin), H - 8);
+  ctx.fillText(EN() ? `batch ${xMax}` : `第 ${xMax} 批`, toX(xMax), H - 8);
   ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 1.5; ctx.beginPath();
   losses.forEach((d, i) => { const x = toX(d.step), y = toY(d.loss); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
   ctx.stroke();
@@ -758,38 +768,48 @@ function biasLine(html) {
 
 // 点模板热图：该打分小组的 196 个位置旋钮（W1 列）+ 起评分 b1 + 对十个评委的发言权重（W2 行）
 function openNeuronModal(j) {
-  showModal(`打分小组 #${j} 的全部参数`,
-    '这是训练到当前时刻的快照；训练中数值在变，重新打开即刷新。红=正（有墨迹加分），蓝=负（有墨迹扣分）。', [
-    secTitle(`196 个位置旋钮（对应 14×14 每个格子，W1 第 ${j} 列）`),
+  const judge = c => EN() ? `Judge ${c}` : `评委 ${c}`;
+  showModal(
+    EN() ? `All parameters of scoring crew #${j}` : `打分小组 #${j} 的全部参数`,
+    EN() ? 'A snapshot at this moment of training; values change while training — reopen to refresh. Red = positive (ink here adds score), blue = negative (ink here subtracts).'
+         : '这是训练到当前时刻的快照；训练中数值在变，重新打开即刷新。红=正（有墨迹加分），蓝=负（有墨迹扣分）。', [
+    secTitle(EN() ? `196 position knobs (one per 14×14 cell, column ${j} of W1)` : `196 个位置旋钮（对应 14×14 每个格子，W1 第 ${j} 列）`),
     buildValueTable((r, c) => model.W1[(r * S + c) * HIDDEN + j], S, S),
-    secTitle('起评分（偏置 b1）——不看任何墨迹、无条件先给的分'),
+    secTitle(EN() ? 'Base score (bias b1) — granted before seeing any ink' : '起评分（偏置 b1）——不看任何墨迹、无条件先给的分'),
     biasLine(`b1[${j}] = <b>${model.b1[j].toFixed(4)}</b>`),
-    secTitle(`对十个评委的发言权重（W2 第 ${j} 行）——这个小组兴奋时，给各数字加/扣多少分`),
-    buildValueTable((r, c) => model.W2[j * OUT + c], 1, OUT, { wide: true, colHead: c => `评委 ${c}` }),
+    secTitle(EN() ? `Its say with the ten judges (row ${j} of W2) — how much each digit gains/loses when this crew fires`
+                  : `对十个评委的发言权重（W2 第 ${j} 行）——这个小组兴奋时，给各数字加/扣多少分`),
+    buildValueTable((r, c) => model.W2[j * OUT + c], 1, OUT, { wide: true, colHead: judge }),
   ]);
 }
 
 // 点 Δ 图：这一步该小组各旋钮的变化量
 function openDeltaModal(j) {
   if (!lastDW1) return;
-  showModal(`打分小组 #${j}：这一步的变化量`,
-    '正数=旋钮被调大（把这批卡片的形状往模板里刻），负数=被调小（往外铲）。', [
-    secTitle(`196 个位置旋钮的变化量（ΔW1 第 ${j} 列）`),
+  showModal(
+    EN() ? `Scoring crew #${j}: changes from this step` : `打分小组 #${j}：这一步的变化量`,
+    EN() ? 'Positive = knob turned up (carving this batch\'s shapes into the template), negative = turned down (scraping them out).'
+         : '正数=旋钮被调大（把这批卡片的形状往模板里刻），负数=被调小（往外铲）。', [
+    secTitle(EN() ? `Change of the 196 position knobs (column ${j} of ΔW1)` : `196 个位置旋钮的变化量（ΔW1 第 ${j} 列）`),
     buildValueTable((r, c) => lastDW1[(r * S + c) * HIDDEN + j], S, S),
-    secTitle('起评分的变化量'),
+    secTitle(EN() ? 'Change of the base score' : '起评分的变化量'),
     biasLine(`Δb1[${j}] = <b>${lastDb1[j].toFixed(6)}</b>`),
   ]);
 }
 
 // 输出层参数：十个评委的底分 b2 + W2 全表
 function openOutputModal() {
-  showModal('输出层的全部参数',
-    '十个评委各有一个"底分"（不看任何证据先领的分），以及听取 64 个打分小组汇报时的加权表（W2 全表）。', [
-    secTitle('十个评委的底分（偏置 b2）'),
-    buildValueTable((r, c) => model.b2[c], 1, OUT, { wide: true, colHead: c => `评委 ${c}` }),
-    secTitle('W2 全表：64 个打分小组 × 10 个评委（行 = 小组，与上方热图编号一致）'),
+  const judge = c => EN() ? `Judge ${c}` : `评委 ${c}`;
+  showModal(
+    EN() ? 'All output-layer parameters' : '输出层的全部参数',
+    EN() ? 'Each of the ten judges has a "base score" (granted before any evidence), plus the weighting table used when hearing the 64 crews\' reports (full W2).'
+         : '十个评委各有一个"底分"（不看任何证据先领的分），以及听取 64 个打分小组汇报时的加权表（W2 全表）。', [
+    secTitle(EN() ? 'The ten judges\' base scores (bias b2)' : '十个评委的底分（偏置 b2）'),
+    buildValueTable((r, c) => model.b2[c], 1, OUT, { wide: true, colHead: judge }),
+    secTitle(EN() ? 'Full W2: 64 scoring crews × 10 judges (rows = crews, numbered like the heatmaps above)'
+                  : 'W2 全表：64 个打分小组 × 10 个评委（行 = 小组，与上方热图编号一致）'),
     buildValueTable((r, c) => model.W2[r * OUT + c], HIDDEN, OUT,
-      { wide: true, colHead: c => `评委 ${c}`, rowHead: r => `#${r}` }),
+      { wide: true, colHead: judge, rowHead: r => `#${r}` }),
   ]);
 }
 
@@ -840,25 +860,29 @@ function drawNetworkDiagram() {
   }
   // 文字标注
   ctx.fillStyle = '#8b949e'; ctx.font = '12px sans-serif';
-  ctx.fillText('196 个格子', inX, H / 2 + 90);
-  ctx.fillText('64 个打分小组', hidX, H - 4);
-  ctx.fillText('给 0~9 打分', outX, H - 4);
+  ctx.fillText(EN() ? '196 cells' : '196 个格子', inX, H / 2 + 90);
+  ctx.fillText(EN() ? '64 scoring crews' : '64 个打分小组', hidX, H - 4);
+  ctx.fillText(EN() ? 'scores for 0–9' : '给 0~9 打分', outX, H - 4);
 }
 
 // ── 步骤 1：卡片画廊 ─────────────────────────────────────────────────────────
 const galleryRng = mulberry32(7);
-function renderGallery() {
+let galleryIdxs = [];
+function renderGallery(reshuffle = true) {
+  if (reshuffle || !galleryIdxs.length) {
+    galleryIdxs = [];
+    for (let n = 0; n < 40; n++) galleryIdxs.push(Math.floor(galleryRng() * N_TRAIN));
+  }
   const root = document.getElementById('gallery');
   root.innerHTML = '';
-  for (let n = 0; n < 40; n++) {
-    const i = Math.floor(galleryRng() * N_TRAIN);
+  for (const i of galleryIdxs) {
     const div = document.createElement('div');
     div.className = 'g-item';
     const cvs = document.createElement('canvas');
     div.appendChild(cvs);
     const lab = document.createElement('div');
     lab.className = 'lab';
-    lab.textContent = '这是 ' + trainLabels[i];
+    lab.textContent = (EN() ? 'This is ' : '这是 ') + trainLabels[i];
     div.appendChild(lab);
     root.appendChild(div);
     renderDigit(cvs, trainImages.subarray(i * PX, (i + 1) * PX), false);
@@ -893,11 +917,13 @@ function renderSamplePredictions() {
     const ok = pred === truth;
     if (ok) nOk++;
     sampleVerdicts[n].innerHTML = ok
-      ? `它猜：${pred} <span class="ok">✓</span>`
-      : `它猜：${pred} <span class="bad">✗</span><span class="note">（答案是 ${truth}）</span>`;
+      ? (EN() ? `Guess: ${pred} <span class="ok">✓</span>` : `它猜：${pred} <span class="ok">✓</span>`)
+      : (EN() ? `Guess: ${pred} <span class="bad">✗</span><span class="note">(answer: ${truth})</span>`
+              : `它猜：${pred} <span class="bad">✗</span><span class="note">（答案是 ${truth}）</span>`);
   });
-  document.getElementById('sample-score').innerHTML =
-    `8 道题对了 <b>${nOk}</b> 道` + (trainedSteps === 0 ? '——和瞎猜差不多。' : '');
+  document.getElementById('sample-score').innerHTML = EN()
+    ? `Got <b>${nOk}</b> of 8 right` + (trainedSteps === 0 ? ' — about the same as random guessing.' : '')
+    : `8 道题对了 <b>${nOk}</b> 道` + (trainedSteps === 0 ? '——和瞎猜差不多。' : '');
 }
 
 // ── 步骤 3：训练控制（单步 + 自动）──────────────────────────────────────────
@@ -945,12 +971,22 @@ function initRun() {
 
 function updateStats(acc) {
   document.getElementById('stat-steps').textContent =
-    (trainedSteps * HP.batch).toLocaleString() + ' 张次';
+    (trainedSteps * HP.batch).toLocaleString() + (EN() ? ' card-views' : ' 张次');
   if (acc !== undefined)
     document.getElementById('stat-acc').textContent = (acc * 100).toFixed(1) + '%';
 }
 
 // 「学一步」：跑一个 batch，展示 猜测vs答案 + 旋钮变化热力图
+let lastStepInfo = null;   // 最近一次单步的 {pred, truth}，供语言切换时重渲染
+function renderStepGuess() {
+  if (!lastStepInfo) return;
+  const { pred, truth } = lastStepInfo;
+  document.getElementById('step-guess').innerHTML = pred === truth
+    ? (EN() ? `Guessed ${pred}, answer ${truth} <span style="color:var(--green)">✓ correct</span>`
+            : `它猜 ${pred}，答案 ${truth} <span style="color:var(--green)">✓ 猜对了</span>`)
+    : (EN() ? `Guessed ${pred}, answer ${truth} <span style="color:var(--red)">✗ wrong — twist!</span>`
+            : `它猜 ${pred}，答案 ${truth} <span style="color:var(--red)">✗ 猜错了，拧！</span>`);
+}
 function stepOnce() {
   const idxs = nextBatch();
   const before = model.W1.slice();          // 拍一张"拧之前"的旋钮照片
@@ -967,10 +1003,8 @@ function stepOnce() {
 
   document.getElementById('stepbox').classList.add('show');
   renderDigit(document.getElementById('step-digit'), trainImages.subarray(first * PX, (first + 1) * PX), false);
-  const truth = trainLabels[first];
-  document.getElementById('step-guess').innerHTML = pred === truth
-    ? `它猜 ${pred}，答案 ${truth} <span style="color:var(--green)">✓ 猜对了</span>`
-    : `它猜 ${pred}，答案 ${truth} <span style="color:var(--red)">✗ 猜错了，拧！</span>`;
+  lastStepInfo = { pred, truth: trainLabels[first] };
+  renderStepGuess();
   renderDeltaGrid();
 
   appendLoss(trainedSteps, loss);
@@ -981,13 +1015,26 @@ function stepOnce() {
 
 // 成绩对比表：每轮训练完成自动记一行
 const runHistory = [];
+let doneAcc = null;   // 最近一轮完成时的成绩（供按钮/总结在语言切换时重渲染）
+function trainIdleText() { return EN() ? '▶ Start learning (a few seconds)' : '▶ 开始学习（几秒钟）'; }
+function trainDoneText() { return EN() ? `Done ✓ accuracy ${(doneAcc * 100).toFixed(1)}%` : `学习完成 ✓ 正确率 ${(doneAcc * 100).toFixed(1)}%`; }
+function trainSummaryText() {
+  const pct = (doneAcc * 100).toFixed(0);
+  return EN()
+    ? `✓ Done. It didn't memorize answers — it had never seen those 500 exam images, yet got ${pct}% right. ` +
+      `That's the difference between learning the patterns and memorizing the answers. Now go to Step 4 and quiz it yourself!`
+    : `✓ 学习完成。它没有背答案——那 500 张考试题它从没见过，却答对了 ${pct}%。` +
+      `这就是"学到了规律"和"背下了答案"的区别。现在去步骤 4 亲手考考它！`;
+}
 function renderRunsTable() {
   const wrap = document.getElementById('runs-wrap');
   const tbl = document.getElementById('runs-table');
   wrap.style.display = runHistory.length ? '' : 'none';
   const bestAcc = Math.max(...runHistory.map(r => r.acc));
   const mark = v => v ? '✓' : '—';
-  tbl.innerHTML = '<tr><th>轮次</th><th>教材翻倍</th><th>惯性下坡</th><th>先大步后小步</th><th>随机挪一格</th><th>考试成绩</th></tr>' +
+  tbl.innerHTML = (EN()
+    ? '<tr><th>Run</th><th>Double data</th><th>Momentum</th><th>Step decay</th><th>Random nudge</th><th>Exam score</th></tr>'
+    : '<tr><th>轮次</th><th>教材翻倍</th><th>惯性下坡</th><th>先大步后小步</th><th>随机挪一格</th><th>考试成绩</th></tr>') +
     runHistory.map((r, i) =>
       `<tr class="${r.acc === bestAcc ? 'best' : ''}"><td>${i + 1}</td><td>${mark(r.data)}</td>` +
       `<td>${mark(r.momentum)}</td><td>${mark(r.decay)}</td><td>${mark(r.aug)}</td>` +
@@ -1037,14 +1084,14 @@ function startTraining() {
       runHistory.push({ data: cfg.nTrain === N_TRAIN, momentum: cfg.momentum > 0,
         decay: cfg.decay, aug: cfg.aug, acc });
       renderRunsTable();
+      doneAcc = acc;
       const btn = document.getElementById('btn-train');
-      btn.textContent = `学习完成 ✓ 正确率 ${(acc * 100).toFixed(1)}%`;
+      btn.textContent = trainDoneText();
       btn.classList.add('done');
       document.getElementById('btn-step').disabled = false;
       setLabEnabled(true);
       const sum = document.getElementById('train-summary');
-      sum.textContent = `✓ 学习完成。它没有背答案——那 500 张考试题它从没见过，却答对了 ${(acc * 100).toFixed(0)}%。` +
-        `这就是"学到了规律"和"背下了答案"的区别。现在去步骤 4 亲手考考它！`;
+      sum.textContent = trainSummaryText();
       sum.classList.add('show');
       document.getElementById('draw-board').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -1056,8 +1103,10 @@ function resetAll() {
   if (training) return;
   rngSeed += 1;                       // 换种子，可反复演示"随机 → 有序"
   initRun();
+  doneAcc = null;
+  lastStepInfo = null;
   const btn = document.getElementById('btn-train');
-  btn.textContent = '▶ 开始学习（几秒钟）';
+  btn.textContent = trainIdleText();
   btn.classList.remove('done');
   btn.disabled = false;
   document.getElementById('btn-step').disabled = false;
@@ -1068,7 +1117,8 @@ function resetAll() {
   drawLossChart();
   renderWeightGrid();
   renderSamplePredictions();
-  document.getElementById('pred-title').textContent = '在黑板上写一个数字试试';
+  lastDrawPred = null;
+  setPredDefault();
 }
 
 // ── 步骤 4：手绘板 ───────────────────────────────────────────────────────────
@@ -1078,11 +1128,24 @@ let drawing = false, lastX = 0, lastY = 0, hasInk = false;
 let predBarRows = null;
 let predictTimer = null;
 
+let lastDrawPred = null;   // 最近一次手绘识别结果 {pred, conf}，供语言切换重渲染
+function setPredDefault() {
+  document.getElementById('pred-title').textContent =
+    EN() ? 'Try writing a digit on the blackboard' : '在黑板上写一个数字试试';
+}
+function renderPredTitle() {
+  if (!lastDrawPred) { setPredDefault(); return; }
+  const { pred, conf } = lastDrawPred;
+  document.getElementById('pred-title').textContent = EN()
+    ? `It thinks this is: ${pred} (${conf}% confident)`
+    : `它猜这是：${pred}（把握 ${conf}%）`;
+}
 function clearBoard() {
   bctx.fillStyle = '#000';
   bctx.fillRect(0, 0, board.width, board.height);
   hasInk = false;
-  document.getElementById('pred-title').textContent = '在黑板上写一个数字试试';
+  lastDrawPred = null;
+  setPredDefault();
   document.getElementById('seen-canvas').getContext('2d').clearRect(0, 0, S, S);
   lastHidden = null;
   renderHiddenMap();
@@ -1212,9 +1275,12 @@ function renderHiddenMap() {
 }
 function openHiddenModal() {
   if (!lastHidden) return;
-  showModal('隐藏层的 64 个中间结果',
-    '你这幅字被 64 张模板各打一次分（不及格已归零）的报告——这就是网络"眼中"的你的字。' +
-    '编号按行排列，与步骤 3 的 64 张模板一一对应；数值越大 = 该模板匹配得越强。', [
+  showModal(
+    EN() ? 'The hidden layer\'s 64 intermediate values' : '隐藏层的 64 个中间结果',
+    EN() ? 'Your drawing scored once by each of the 64 templates (failing scores zeroed out) — this is what the network "sees" of your writing. ' +
+           'Numbered row-major, matching the 64 templates in Step 3; larger = stronger template match.'
+         : '你这幅字被 64 张模板各打一次分（不及格已归零）的报告——这就是网络"眼中"的你的字。' +
+           '编号按行排列，与步骤 3 的 64 张模板一一对应；数值越大 = 该模板匹配得越强。', [
     buildValueTable((r, c) => lastHidden[r * 8 + c], 8, 8, {
       wide: true, diffMode: true, colHead: c => `+${c}`, rowHead: r => `#${r * 8}`,
     }),
@@ -1230,9 +1296,92 @@ function predictDrawing() {
   lastHidden = h;
   renderHiddenMap();
   renderProbBars(predBarRows, probs);
-  document.getElementById('pred-title').textContent =
-    `它猜这是：${pred}（把握 ${(probs[pred] * 100).toFixed(0)}%）`;
+  lastDrawPred = { pred, conf: (probs[pred] * 100).toFixed(0) };
+  renderPredTitle();
   document.getElementById('untrained-warn').classList.toggle('show', trainedSteps === 0);
+}
+
+// ── 中英文切换：静态文案字典与应用 ─────────────────────────────────────────────
+// 中文原文在 HTML 里；页面加载时自动捕获为 I18N_ZH，字典只需维护英文。
+const I18N_EN = {
+  'hero-h1': 'How does a machine “learn” to read digits?',
+  'hero-sub': 'A mini neural network that trains live in your browser.<br>Nothing to install — scroll down and walk through the 5 steps.',
+  's1-title': 'The textbook: examples for the machine',
+  's1-p': 'We teach kids digits with flashcards: “this is a 3, this is a 7.” Teaching a machine works the same way — below are <b>6,000 “flashcards”</b>, each a real handwritten digit labeled with the correct answer (another 6,000 wait in reserve — try the “Double the textbook” experiment in Step 3). All the machine has to learn is the patterns hidden in these examples.',
+  'btn-shuffle': '🔀 Show another batch',
+  's1-note': 'Note: the machine doesn’t see a “picture” — it sees 14×14 = 196 numbers describing brightness. It can only do arithmetic; it cannot “look”.',
+  's2-title': 'Before training: it can only guess',
+  's2-p1': 'Here is the network — the picture’s 196 cells enter on the left, pass through a middle layer of “scoring crews”, and each digit 0–9 gets a score on the right; the highest score is its answer:',
+  's2-p2': 'The network has <b>13,258 tiny adjustable “knobs”</b> (the term is parameters); they decide how much each connection matters. Fresh out of the box every knob sits at a random position — so its answers are pure guesses. Here are 8 questions; see how many it gets right now (random guessing averages about 1):',
+  's3-title': 'Learning: one batch of flashcards at a time',
+  's3-p': 'How the machine “grinds exercises”: take 32 flashcards, guess, then check the answers; for every mistake, nudge the responsible knobs <b>a tiny bit</b> in the right direction. Click “One step” to watch a single step up close, or “Start learning” to fast-forward.',
+  'lab-title': 'Improvement lab: each of the four tricks below helps it learn better. Tick some and train — the score is logged in the comparison table, so try switching them on and off to see the difference. (Changing a switch restarts training.)',
+  'lab-data': '<b>Double the textbook</b> <span class="why">— from 6,000 to 12,000 flashcards</span>',
+  'lab-mom': '<b>Momentum</b> <span class="why">— keep rolling when several steps agree, cancelling each batch’s whims</span>',
+  'lab-decay': '<b>Big steps, then small steps</b> <span class="why">— twist boldly at first, fine-tune near the end</span>',
+  'lab-aug': '<b>Nudge cards randomly</b> <span class="why">— shift each card ±1 pixel before showing it: free “new handwriting”</span>',
+  'btn-step': '👣 One step',
+  'btn-reset': '🔄 Start over',
+  'step-digit-cap': 'The 1st of this step’s 32 flashcards',
+  'seg-mag': 'Magnitude',
+  'seg-dir': 'Direction',
+  'delta-cap-base': 'How much each knob moved — bright spots were twisted this step (one image per scoring crew)',
+  'stat-steps-k': 'Cards seen (each card is revisited ~20 times)',
+  'stat-acc-k': 'Exam score (500 images it has never seen)',
+  'chart-loss-title': 'Error level (lower is better)',
+  'chart-weights-title': 'What each of the 64 “scoring crews” watches for — random static before training; after training, ghostly strokes emerge. The patterns are where the knowledge lives. Click any image to inspect the exact numbers.',
+  'btn-output-params': 'Output-layer parameters',
+  'runs-title': 'Score comparison — one row per completed run',
+  's4-title': 'Your turn: write a digit and quiz it',
+  's4-p': 'Draw a digit 0–9 on the blackboard with your mouse (or finger). It has <b>never</b> seen your handwriting — if it still recognizes it, those 13k knobs really did store what digits look like.',
+  'btn-clear': '🧹 Clear',
+  'seen-note': '← what the machine<br>actually sees (14×14)',
+  'center-label': 'Auto-crop &amp; center the writing before feeding it in<br><span style="color:var(--yellow)">Experiment: turn this off and write in a corner — the machine instantly stops recognizing it. Every “template” is tied to fixed positions; position itself is part of the feature. Toggling re-runs recognition on your current strokes.</span>',
+  'hidden-note-1': 'Intermediate result: how excited<br>each of the 64 scoring crews is<br>(click for exact values)',
+  'hidden-note-2': 'Arranged to match the 64<br>templates in Step 3',
+  'untrained-warn': 'It hasn’t learned yet — this is a pure guess. Go back to Step 3, click “Start learning”, then come back.',
+  's5-title': 'What you just saw is how ChatGPT works',
+  's5-p1': 'This little network and large models like ChatGPT are essentially the same thing — only three numbers differ:',
+  's5-table': '<tr><th></th><th>This little demo</th><th>Large models like ChatGPT</th></tr>' +
+    '<tr><td>Examples seen</td><td>6,000–12,000 handwritten digits</td><td>Nearly the whole internet’s text</td></tr>' +
+    '<tr><td>Number of knobs (parameters)</td><td>13 thousand</td><td>Hundreds of billions</td></tr>' +
+    '<tr><td>Task learned</td><td>See a picture → guess the digit</td><td>See the context → guess the next word</td></tr>',
+  's5-flow': '<div class="row"><span class="tag">This demo</span><span class="box">Random knobs</span><span class="arrow">→</span><span class="box">🔁 See cards · check answers · twist knobs</span><span class="arrow">→</span><span class="box">Knobs that read new handwriting</span></div>' +
+    '<div class="row"><span class="tag">Large models</span><span class="box">Random knobs</span><span class="arrow">→</span><span class="box">🔁 See text · check answers · twist knobs</span><span class="arrow">→</span><span class="box">Knobs that answer new questions</span></div>',
+  's5-p2': 'Training is identical: knobs start random and the output is gibberish; then vast numbers of examples run through “guess → check → twist”; in the end the patterns live in the knobs. ChatGPT answering a question it has never seen, and this network reading handwriting it has never seen, are <b>the same ability</b> — learning patterns from examples and applying them to something new.',
+  's5-closing': 'There is no magic in “artificial intelligence”:<br>just a great many knobs, a great many examples, and the patience to twist a little whenever it’s wrong.',
+};
+const I18N_ZH = {};
+for (const el of document.querySelectorAll('[data-i18n]')) I18N_ZH[el.dataset.i18n] = el.innerHTML;
+
+function applyLang() {
+  document.documentElement.lang = EN() ? 'en' : 'zh';
+  document.title = EN() ? 'How does a machine “learn” to read digits?' : '机器是怎么"学会"认字的？';
+  document.getElementById('btn-lang').textContent = EN() ? '中文' : 'English';
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    const k = el.dataset.i18n;
+    const html = EN() ? I18N_EN[k] : I18N_ZH[k];
+    if (html !== undefined) el.innerHTML = html;
+  }
+  // 动态内容按当前语言重渲染
+  renderGallery(false);
+  renderSamplePredictions();
+  updateStats();
+  drawLossChart();
+  drawNetworkDiagram();
+  renderRunsTable();
+  renderStepGuess();
+  renderDeltaGrid();
+  const btn = document.getElementById('btn-train');
+  if (!training) btn.textContent = doneAcc !== null ? trainDoneText() : trainIdleText();
+  if (doneAcc !== null) document.getElementById('train-summary').textContent = trainSummaryText();
+  renderPredTitle();
+  closeModal();
+}
+function toggleLang() {
+  lang = EN() ? 'zh' : 'en';
+  try { localStorage.setItem('digitdemo-lang', lang); } catch (e) {}
+  applyLang();
 }
 
 // ── 页面初始化 ───────────────────────────────────────────────────────────────
@@ -1248,6 +1397,7 @@ document.getElementById('hidden-map').addEventListener('click', openHiddenModal)
 for (const id of ['opt-data', 'opt-momentum', 'opt-decay', 'opt-aug'])
   document.getElementById(id).addEventListener('change', resetAll);   // 改开关 = 重新开始
 document.getElementById('opt-center').addEventListener('change', predictDrawing);  // 切换立即重新识别
+document.getElementById('btn-lang').addEventListener('click', toggleLang);
 document.getElementById('modal-close').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
@@ -1266,6 +1416,7 @@ renderWeightGrid();
 drawLossChart();
 updateStats();
 clearBoard();
+applyLang();          // 应用保存的语言（默认中文时等价于原样刷新）
 </script>
 </body>
 </html>
