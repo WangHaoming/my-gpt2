@@ -12,3 +12,6 @@ data/
 checkpoints/
 runs/
 .DS_Store
+
+# 演示数据缓存（src/math/make_dataset.py 下载的 MNIST 原始文件）
+src/math/.cache/

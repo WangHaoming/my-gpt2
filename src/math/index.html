@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>机器是怎么"学会"认字的？</title>
+<style>
+/* ── 主题（沿用 viz_static 的暗色变量）───────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #0d1117;
+  --panel:   #161b22;
+  --border:  #30363d;
+  --text:    #c9d1d9;
+  --dim:     #8b949e;
+  --accent:  #58a6ff;
+  --red:     #f85149;
+  --green:   #3fb950;
+  --yellow:  #d29922;
+  --orange:  #d2691e;
+}
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 15px; line-height: 1.8;
+}
+.mono { font-family: 'SF Mono', Consolas, monospace; }
+
+/* ── 页面骨架：单列居中，步骤卡片 ─────────────────────────────────────────── */
+.page { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
+.hero { text-align: center; margin-bottom: 48px; }
+.hero h1 { font-size: 30px; margin-bottom: 12px; }
+.hero p { color: var(--dim); font-size: 15px; }
+
+.step-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: 28px 32px; margin-bottom: 36px;
+}
+.step-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.step-num {
+  width: 36px; height: 36px; min-width: 36px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+.step-head h2 { font-size: 20px; }
+.step-card > p { margin-bottom: 14px; }
+.note { color: var(--dim); font-size: 13px; }
+
+.btn {
+  display: inline-block; padding: 9px 20px; border-radius: 8px;
+  border: 1px solid var(--border); background: #21262d; color: var(--text);
+  cursor: pointer; font-family: inherit; font-size: 15px; transition: background .15s;
+}
+.btn:hover { background: #30363d; }
+.btn.primary { background: #1f6feb; border-color: #388bfd; color: #fff; }
+.btn.primary:hover { background: #388bfd; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.done { background: #1a3620; border-color: var(--green); color: var(--green); }
+
+canvas { image-rendering: pixelated; }
+
+/* ── 步骤 1：卡片画廊 ────────────────────────────────────────────────────── */
+.gallery { display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px; margin: 16px 0; }
+.g-item { text-align: center; }
+.g-item canvas { border: 1px solid var(--border); border-radius: 4px; width: 100%; }
+.g-item .lab { font-size: 12px; color: var(--dim); }
+
+/* ── 步骤 2：示意图 + 8 道题 ─────────────────────────────────────────────── */
+.diagram-wrap { text-align: center; margin: 18px 0; }
+.diagram-wrap canvas { max-width: 100%; }
+.samples { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 16px; }
+.sample { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; }
+.sample canvas { width: 56px; height: 56px; border-radius: 4px; }
+.sample .verdict { font-size: 13px; margin-top: 4px; }
+.verdict .ok  { color: var(--green); }
+.verdict .bad { color: var(--red); }
+#sample-score { margin-top: 12px; font-size: 14px; }
+
+/* ── 步骤 3：训练区 ─────────────────────────────────────────────────────── */
+.lab-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin: 14px 0 4px; }
+.lab-panel .lab-title { color: var(--dim); font-size: 13px; margin-bottom: 8px; }
+.lab-panel label { display: block; font-size: 14px; padding: 3px 0; cursor: pointer; }
+.lab-panel input { accent-color: #1f6feb; margin-right: 6px; }
+.lab-panel .why { color: var(--dim); }
+.runs-table { border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+.runs-table th, .runs-table td { border: 1px solid var(--border); padding: 5px 12px; text-align: center; }
+.runs-table th { background: var(--bg); color: var(--dim); font-weight: 600; }
+.runs-table td.acc { font-family: 'SF Mono', Consolas, monospace; font-weight: 700; }
+.runs-table tr.best td { color: var(--green); }
+.train-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 12px 0 20px; }
+.train-stats { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 18px; }
+.stat .k { color: var(--dim); font-size: 13px; }
+.stat .v { font-size: 30px; font-weight: 700; color: var(--accent); }
+.stat .v.green { color: var(--green); }
+#loss-chart { display: block; width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 20px; }
+.chart-title { color: var(--dim); font-size: 13px; margin-bottom: 6px; }
+
+.stepbox { background: var(--bg); border: 1px dashed var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; display: none; }
+.stepbox.show { display: block; }
+.stepbox-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stepbox .cell { text-align: center; }
+.stepbox .cell .cap { font-size: 12px; color: var(--dim); margin-top: 6px; max-width: 200px; }
+.stepbox canvas.digit { width: 84px; height: 84px; border: 1px solid var(--border); border-radius: 4px; }
+.guess-line { font-size: 17px; margin-top: 8px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+.seg button { padding: 3px 12px; border: none; background: var(--panel); color: var(--dim); cursor: pointer; font-family: inherit; font-size: 12px; }
+.seg button.on { background: #1f6feb; color: #fff; }
+
+.wgrid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 8px; }
+.wgrid canvas { width: 100%; border: 1px solid var(--border); border-radius: 3px; cursor: pointer; }
+.wgrid canvas:hover { border-color: var(--accent); }
+
+/* ── 参数检查器弹层 ─────────────────────────────────────────────────────── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px 26px; max-width: 92vw; max-height: 90vh; overflow: auto; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 24px; }
+.modal-head h3 { font-size: 17px; }
+.modal-close { cursor: pointer; color: var(--dim); font-size: 22px; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal .sub { color: var(--dim); font-size: 13px; margin-bottom: 14px; }
+.psec-title { color: var(--dim); font-size: 12px; font-weight: 700; margin: 16px 0 6px; }
+.ptable { border-collapse: collapse; font-family: 'SF Mono', Consolas, monospace; font-size: 9px; }
+.ptable td { border: 1px solid rgba(48,54,61,.6); padding: 0; width: 40px; height: 22px; text-align: center; white-space: nowrap; }
+.ptable td.head { background: var(--bg); color: var(--dim); font-size: 10px; border-color: var(--border); }
+.ptable.wide td { width: 52px; font-size: 10px; }
+.bias-line { font-size: 15px; margin: 4px 0; }
+.bias-line b { font-family: 'SF Mono', Consolas, monospace; font-size: 20px; color: var(--accent); }
+.btn.small { padding: 3px 12px; font-size: 12px; }
+.train-summary { display: none; margin-top: 16px; padding: 12px 16px; border: 1px solid var(--green); border-radius: 8px; color: var(--green); background: rgba(63,185,80,.08); }
+.train-summary.show { display: block; }
+
+/* ── 步骤 4：画板 ───────────────────────────────────────────────────────── */
+.draw-row { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 8px; }
+#draw-board { background: #000; border: 2px solid var(--border); border-radius: 8px; cursor: crosshair; touch-action: none; }
+.draw-side { display: flex; flex-direction: column; gap: 10px; }
+#seen-canvas { width: 84px; height: 84px; border: 1px solid var(--border); border-radius: 4px; background: #000; }
+.hidden-side { display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; }
+#hidden-map { width: 152px; height: 152px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: var(--bg); }
+#hidden-map:hover { border-color: var(--accent); }
+.pred-panel { flex: 1; min-width: 240px; }
+#pred-title { font-size: 22px; font-weight: 700; margin-bottom: 12px; min-height: 34px; }
+.pred-item { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+.pred-digit { width: 24px; text-align: center; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 14px; }
+.pred-bar-bg { flex: 1; height: 14px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.pred-bar { height: 100%; background: var(--accent); border-radius: 4px; width: 0; transition: width .12s; }
+.pred-item.top .pred-bar { background: var(--green); }
+.pred-pct { width: 46px; text-align: right; color: var(--dim); font-size: 12px; }
+#untrained-warn { display: none; margin-top: 12px; padding: 10px 14px; border: 1px solid var(--yellow); border-radius: 8px; color: var(--yellow); background: rgba(210,153,34,.08); font-size: 14px; }
+#untrained-warn.show { display: block; }
+
+/* ── 步骤 5：对比表 ─────────────────────────────────────────────────────── */
+.cmp-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+.cmp-table th, .cmp-table td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; font-size: 14px; }
+.cmp-table th { background: var(--bg); color: var(--dim); font-weight: 600; }
+.cmp-table td:first-child { color: var(--dim); }
+.flow { text-align: center; margin: 20px 0 8px; font-size: 15px; }
+.flow .row { margin: 8px 0; }
+.flow .tag { display: inline-block; min-width: 92px; color: var(--dim); font-size: 13px; }
+.flow .box { display: inline-block; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; margin: 0 4px; }
+.flow .arrow { color: var(--accent); margin: 0 4px; }
+.closing { text-align: center; color: var(--dim); margin-top: 20px; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <h1>机器是怎么"学会"认字的？</h1>
+    <p>一个能在你浏览器里现场训练的迷你神经网络。<br>不用安装任何东西，往下滚动，跟着 5 个步骤走一遍。</p>
+  </div>
+
+  <!-- ═══ 步骤 1 ═══ -->
+  <div class="step-card">
+    <div class="step-head"><div class="step-num">1</div><h2>教材：给机器看的例子</h2></div>
+    <p>人教小孩认数字，是拿卡片一张张指给他看："这是 3，这是 7。"教机器也一样——下面是我们准备的
+       <b>6000 张"卡片"</b>，每张都是真人手写的数字，并且标好了正确答案（库里还备着 6000 张，
+       步骤 3 可以做"教材翻倍"实验）。机器要学的，就是从这些例子里找规律。</p>
+    <div class="gallery" id="gallery"></div>
+    <button class="btn" id="btn-shuffle">🔀 换一批看看</button>
+    <p class="note" style="margin-top:14px">注意：机器看到的不是"图"，而是 14×14=196 个表示深浅的数字。它只会算数，不会"看"。</p>
+  </div>
+
+  <!-- ═══ 步骤 2 ═══ -->
+  <div class="step-card">
+    <div class="step-head"><div class="step-num">2</div><h2>训练之前：它只会瞎猜</h2></div>
+    <p>这个网络长这样——图片的 196 个格子从左边进去，经过中间一层"打分小组"，右边给 0~9 各打一个分，
+       分最高的就是它的答案：</p>
+    <div class="diagram-wrap"><canvas id="net-diagram" width="720" height="300"></canvas></div>
+    <p>网络里一共有 <b>13,258 个可以拧的"小旋钮"</b>（术语叫参数），旋钮决定每根连线的重要程度。
+       刚出厂时，每个旋钮都停在随机位置——所以它的回答完全是乱猜的。
+       下面 8 道题，看看它现在能对几道（瞎猜平均只能对 1 道左右）：</p>
+    <div class="samples" id="samples"></div>
+    <div id="sample-score"></div>
+  </div>
+
+  <!-- ═══ 步骤 3 ═══ -->
+  <div class="step-card">
+    <div class="step-head"><div class="step-num">3</div><h2>开始学习：一道题一道题地改</h2></div>
+    <p>机器"刷题"的方法：每次拿 32 张卡片，先自己猜，再对答案；猜错了，就把导致出错的旋钮往正确方向
+       <b>拧一点点</b>。想看清每一步，点「学一步」；想直接看结果，点「开始学习」快进。</p>
+    <div class="lab-panel">
+      <div class="lab-title">改进实验室：下面四招都能让它学得更好。勾选后训练，成绩自动记入对比表——试试关掉几个再训，看看差多少。（改动开关会自动重新开始）</div>
+      <label><input type="checkbox" id="opt-data"><b>教材翻倍</b> <span class="why">—— 从 6000 张翻倍到 12000 张卡片</span></label>
+      <label><input type="checkbox" id="opt-momentum"><b>惯性下坡（动量）</b> <span class="why">—— 连续几步方向一致就越走越快，抵消单批例题的"任性"</span></label>
+      <label><input type="checkbox" id="opt-decay"><b>先大步后小步</b> <span class="why">—— 刚开始大胆拧，快学完时改成细细微调</span></label>
+      <label><input type="checkbox" id="opt-aug"><b>卡片随机挪一格</b> <span class="why">—— 每次看卡片前随机平移一点，免费变出更多"新写法"</span></label>
+    </div>
+    <div class="train-controls">
+      <button class="btn" id="btn-step">👣 学一步</button>
+      <button class="btn primary" id="btn-train">▶ 开始学习（几秒钟）</button>
+      <button class="btn" id="btn-reset">🔄 重新开始</button>
+    </div>
+
+    <div class="stepbox" id="stepbox">
+      <div class="stepbox-row">
+        <div class="cell">
+          <canvas class="digit" id="step-digit" width="14" height="14"></canvas>
+          <div class="guess-line" id="step-guess"></div>
+          <div class="cap">这一步 32 张卡片中的第 1 张</div>
+        </div>
+        <div class="cell" style="flex:1; min-width:260px">
+          <div class="seg">
+            <button id="delta-mode-mag" class="on">幅度</button>
+            <button id="delta-mode-dir">方向</button>
+          </div>
+          <div class="wgrid" id="delta-grid"></div>
+          <div class="cap" style="max-width:none" id="delta-cap">旋钮的变化量——亮的地方就是这一步被拧动的旋钮（64 个打分小组各一张图）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="train-stats">
+      <div class="stat"><div class="k">已刷题量（同一张卡片会被反复刷 20 遍）</div><div class="v mono" id="stat-steps">0 张次</div></div>
+      <div class="stat"><div class="k">考试成绩（500 张它从没见过的新图）</div><div class="v mono green" id="stat-acc">--</div></div>
+    </div>
+
+    <div class="chart-title">犯错程度（越低越好）</div>
+    <canvas id="loss-chart" width="796" height="220"></canvas>
+
+    <div class="chart-title">中间那 64 个"打分小组"各自在关注什么——训练前是随机雪花，训练后会浮现笔画的影子，规律就存在这些旋钮里。
+      点击任意一张可以查看具体数值。
+      <button class="btn small" id="btn-output-params" style="margin-left:8px">查看输出层参数</button>
+    </div>
+    <div class="wgrid" id="weight-grid"></div>
+
+    <div class="train-summary" id="train-summary"></div>
+
+    <div id="runs-wrap" style="display:none">
+      <div class="chart-title" style="margin-top:20px">成绩对比——每训练完一轮自动记一行</div>
+      <table class="runs-table" id="runs-table"></table>
+    </div>
+  </div>
+
+  <!-- ═══ 步骤 4 ═══ -->
+  <div class="step-card">
+    <div class="step-head"><div class="step-num">4</div><h2>该你出题了：写一个数字考考它</h2></div>
+    <p>用鼠标（或手指）在黑板上写一个 0~9 的数字。你的字迹它<b>百分之百没见过</b>——如果它还能认出来，
+       就说明那 1.3 万个旋钮里真的存下了"数字长什么样"的规律。</p>
+    <div class="draw-row">
+      <div class="draw-side">
+        <canvas id="draw-board" width="280" height="280"></canvas>
+        <div style="display:flex; gap:10px; align-items:center">
+          <button class="btn" id="btn-clear">🧹 清空</button>
+          <canvas id="seen-canvas" width="14" height="14" title="机器实际看到的样子"></canvas>
+          <span class="note">← 机器实际看到的<br>14×14 版本</span>
+        </div>
+        <label class="note" style="cursor:pointer; max-width:280px">
+          <input type="checkbox" id="opt-center" checked style="accent-color:#1f6feb; margin-right:4px">自动把字裁剪、居中后再给机器看<br>
+          <span style="color:var(--yellow)">做个实验：关掉它，在角落写个数字——你会发现机器立刻不认识了。因为它的每个"模板"都绑定着固定位置，位置也是特征的一部分。开关切换会立即用当前笔迹重新识别，可对比。</span>
+        </label>
+      </div>
+      <div class="hidden-side">
+        <div class="note">中间结果：64 个打分小组<br>各自的兴奋程度<br>（点击查看具体数值）</div>
+        <canvas id="hidden-map" width="8" height="8" title="隐藏层的 64 个中间结果，点击查看数值"></canvas>
+        <div class="note" id="hidden-note">排列与步骤 3 的<br>64 张模板一一对应</div>
+      </div>
+      <div class="pred-panel">
+        <div id="pred-title">在黑板上写一个数字试试</div>
+        <div id="pred-bars"></div>
+        <div id="untrained-warn">它还没学习，现在是瞎猜的——回到步骤 3 点「开始学习」，再回来试试。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 步骤 5 ═══ -->
+  <div class="step-card">
+    <div class="step-head"><div class="step-num">5</div><h2>你刚才看到的，就是 ChatGPT 的原理</h2></div>
+    <p>刚才这个小网络和 ChatGPT 这类"大模型"，本质上是同一件事，只是三个数字不一样：</p>
+    <table class="cmp-table">
+      <tr><th></th><th>这个小演示</th><th>ChatGPT 这样的大模型</th></tr>
+      <tr><td>看的例子</td><td>6000~12000 张手写数字</td><td>几乎整个互联网的文字</td></tr>
+      <tr><td>旋钮（参数）数量</td><td>1.3 万个</td><td>上千亿个</td></tr>
+      <tr><td>学的任务</td><td>看图 → 猜是哪个数字</td><td>看前文 → 猜下一个字是什么</td></tr>
+    </table>
+    <div class="flow">
+      <div class="row"><span class="tag">本页演示</span><span class="box">随机旋钮</span><span class="arrow">→</span><span class="box">🔁 看卡片 · 对答案 · 拧旋钮</span><span class="arrow">→</span><span class="box">会认新字迹的旋钮</span></div>
+      <div class="row"><span class="tag">大模型</span><span class="box">随机旋钮</span><span class="arrow">→</span><span class="box">🔁 看文字 · 对答案 · 拧旋钮</span><span class="arrow">→</span><span class="box">会答新问题的旋钮</span></div>
+    </div>
+    <p style="margin-top:16px">训练的过程一模一样：一开始旋钮全是随机的，输出是胡言乱语；然后拿海量例子反复
+       "猜 → 对答案 → 拧旋钮"；最后规律都存进了旋钮里。你问 ChatGPT 一个它从没见过的问题，它能回答，
+       和刚才它认出你从没给它看过的字迹，是<b>同一种能力</b>——从例子里学到规律，再用到新东西上。</p>
+    <p class="closing">所谓"人工智能"，并没有魔法：<br>就是很多很多旋钮，加上很多很多例子，加上"错了就拧一点"的耐心。</p>
+  </div>
+
+</div>
+
+<!-- 参数检查器弹层 -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-box">
+    <div class="modal-head">
+      <h3 id="modal-title"></h3>
+      <span class="modal-close" id="modal-close">×</span>
+    </div>
+    <div class="sub" id="modal-sub"></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="mnist_data.js"></script>
+<script>
+'use strict';
+
+// ── 数据解码 ──────────────────────────────────────────────────────────────────
+// mnist_data.js 里是 base64 的 uint8 字节；图像按行主序平铺，每张 196 字节。
+function b64ToU8(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+const S = MNIST.size, PX = S * S;
+const trainImages = b64ToU8(MNIST.trainImages);
+const trainLabels = b64ToU8(MNIST.trainLabels);
+const testImages  = b64ToU8(MNIST.testImages);
+const testLabels  = b64ToU8(MNIST.testLabels);
+
+// 归一化到 0~1 的 Float32 全量缓存（训练热循环里避免反复除法）
+const trainX = new Float32Array(trainImages.length);
+for (let i = 0; i < trainImages.length; i++) trainX[i] = trainImages[i] / 255;
+const testX = new Float32Array(testImages.length);
+for (let i = 0; i < testImages.length; i++) testX[i] = testImages[i] / 255;
+
+// ── 随机数（固定种子，保证"训练前瞎猜"的样子每次刷新一致）──────────────────────
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function makeRandn(rng) {
+  // Box-Muller：两个均匀随机数变一个正态随机数
+  return () => Math.sqrt(-2 * Math.log(rng() + 1e-12)) * Math.cos(2 * Math.PI * rng());
+}
+
+// ── 模型：196 → 64(ReLU) → 10(softmax) ───────────────────────────────────────
+const HIDDEN = 64, OUT = 10;
+const HP = { batch: 32, epochs: 20 };
+const N_TRAIN = MNIST.nTrain, N_TEST = MNIST.nTest;
+
+let model = null;      // {W1, b1, W2, b2} 全部 Float32Array 平铺
+let vel = null;        // 动量的"速度"缓存，与 model 同形状
+let rngSeed = 42;
+
+// 改进实验室：读四个开关，得到本轮训练配置（与 make_dataset.py --check 的 torch 对照一致）
+let cfg = null;
+let TOTAL_STEPS = 0;
+function getConfig() {
+  const on = id => document.getElementById(id).checked;
+  return {
+    nTrain: on('opt-data') ? N_TRAIN : N_TRAIN / 2,   // 教材翻倍：12000 vs 6000
+    momentum: on('opt-momentum') ? 0.9 : 0,           // 惯性下坡
+    lr: on('opt-momentum') ? 0.05 : 0.2,              // 有惯性时步子要小，否则冲过头
+    decay: on('opt-decay'),                            // 先大步后小步（线性衰减到 10%）
+    aug: on('opt-aug'),                                // 卡片随机挪一格
+  };
+}
+function currentLR() {
+  const t = Math.min(1, trainedSteps / TOTAL_STEPS);
+  return cfg.lr * (cfg.decay ? 1 - 0.9 * t : 1);
+}
+
+function initModel(seed) {
+  const randn = makeRandn(mulberry32(seed));
+  const W1 = new Float32Array(PX * HIDDEN);
+  const W2 = new Float32Array(HIDDEN * OUT);
+  const s1 = Math.sqrt(2 / PX), s2 = Math.sqrt(2 / HIDDEN);   // He 初始化
+  for (let i = 0; i < W1.length; i++) W1[i] = randn() * s1;
+  for (let i = 0; i < W2.length; i++) W2[i] = randn() * s2;
+  return { W1, b1: new Float32Array(HIDDEN), W2, b2: new Float32Array(OUT) };
+}
+
+// 前向：xs 为 B×196 平铺，返回 {h: B×64, probs: B×10}
+function forward(xs, B) {
+  const { W1, b1, W2, b2 } = model;
+  const h = new Float32Array(B * HIDDEN);
+  const probs = new Float32Array(B * OUT);
+  for (let b = 0; b < B; b++) {
+    const xo = b * PX, ho = b * HIDDEN, po = b * OUT;
+    for (let j = 0; j < HIDDEN; j++) {
+      let z = b1[j];
+      for (let i = 0; i < PX; i++) z += xs[xo + i] * W1[i * HIDDEN + j];
+      h[ho + j] = z > 0 ? z : 0;                       // ReLU
+    }
+    let maxZ = -Infinity;
+    for (let k = 0; k < OUT; k++) {
+      let z = b2[k];
+      for (let j = 0; j < HIDDEN; j++) z += h[ho + j] * W2[j * OUT + k];
+      probs[po + k] = z;
+      if (z > maxZ) maxZ = z;
+    }
+    let sum = 0;                                        // softmax（减最大值防溢出）
+    for (let k = 0; k < OUT; k++) { const e = Math.exp(probs[po + k] - maxZ); probs[po + k] = e; sum += e; }
+    for (let k = 0; k < OUT; k++) probs[po + k] /= sum;
+  }
+  return { h, probs };
+}
+
+// 一步训练：前向 + 反向 + 更新，返回本批平均"犯错程度"（交叉熵）
+// 反向传播用 softmax 交叉熵的经典化简：dz2 = (probs - onehot) / B
+// 更新规则带动量：v = momentum·v + 梯度；参数 -= 当前学习率 × v
+// （momentum=0 时退化为普通 SGD，v 就是梯度本身）
+function trainStep(idxs) {
+  const { W1, b1, W2, b2 } = model;
+  const lr_ = currentLR(), mom = cfg.momentum;
+  const B = idxs.length;
+  const xs = new Float32Array(B * PX);
+  for (let b = 0; b < B; b++) {
+    const src = trainX.subarray(idxs[b] * PX, (idxs[b] + 1) * PX);
+    if (!cfg.aug) { xs.set(src, b * PX); continue; }
+    // 数据增强：随机平移 ±1 像素（出界补 0），等于免费变出"同一个字的新写法"
+    const dx = Math.floor(trainRng() * 3) - 1, dy = Math.floor(trainRng() * 3) - 1;
+    for (let r = 0; r < S; r++) {
+      const sr = r - dy;
+      if (sr < 0 || sr >= S) continue;
+      for (let c = 0; c < S; c++) {
+        const sc = c - dx;
+        if (sc < 0 || sc >= S) continue;
+        xs[b * PX + r * S + c] = src[sr * S + sc];
+      }
+    }
+  }
+
+  const { h, probs } = forward(xs, B);
+
+  let loss = 0;
+  const dz2 = new Float32Array(B * OUT);
+  for (let b = 0; b < B; b++) {
+    const y = trainLabels[idxs[b]], po = b * OUT;
+    loss -= Math.log(probs[po + y] + 1e-12);
+    for (let k = 0; k < OUT; k++) dz2[po + k] = (probs[po + k] - (k === y ? 1 : 0)) / B;
+  }
+  loss /= B;
+
+  // 第二层：dW2 = hᵀ·dz2，db2 = Σdz2；并顺手算 dh = dz2·W2ᵀ（要在更新 W2 之前）
+  const dh = new Float32Array(B * HIDDEN);
+  for (let b = 0; b < B; b++) {
+    const ho = b * HIDDEN, po = b * OUT;
+    for (let j = 0; j < HIDDEN; j++) {
+      if (h[ho + j] <= 0) continue;                     // ReLU 掩码：没被激活的不传梯度
+      let g = 0;
+      for (let k = 0; k < OUT; k++) g += dz2[po + k] * W2[j * OUT + k];
+      dh[ho + j] = g;
+    }
+  }
+  for (let j = 0; j < HIDDEN; j++) {
+    for (let k = 0; k < OUT; k++) {
+      let g = 0;
+      for (let b = 0; b < B; b++) g += h[b * HIDDEN + j] * dz2[b * OUT + k];
+      const v = vel.W2[j * OUT + k] = mom * vel.W2[j * OUT + k] + g;
+      W2[j * OUT + k] -= lr_ * v;
+    }
+  }
+  for (let k = 0; k < OUT; k++) {
+    let g = 0;
+    for (let b = 0; b < B; b++) g += dz2[b * OUT + k];
+    const v = vel.b2[k] = mom * vel.b2[k] + g;
+    b2[k] -= lr_ * v;
+  }
+
+  // 第一层：dW1 = xᵀ·dh，db1 = Σdh（动量下先累积完整梯度，再统一更新）
+  const dW1 = new Float32Array(PX * HIDDEN);
+  for (let b = 0; b < B; b++) {
+    const xo = b * PX, ho = b * HIDDEN;
+    for (let j = 0; j < HIDDEN; j++) {
+      const g = dh[ho + j];
+      if (g === 0) continue;
+      for (let i = 0; i < PX; i++) dW1[i * HIDDEN + j] += g * xs[xo + i];
+    }
+  }
+  for (let i = 0; i < PX * HIDDEN; i++) {
+    const v = vel.W1[i] = mom * vel.W1[i] + dW1[i];
+    W1[i] -= lr_ * v;
+  }
+  for (let j = 0; j < HIDDEN; j++) {
+    let g = 0;
+    for (let b = 0; b < B; b++) g += dh[b * HIDDEN + j];
+    const v = vel.b1[j] = mom * vel.b1[j] + g;
+    b1[j] -= lr_ * v;
+  }
+  return loss;
+}
+
+function predictOne(x196) {
+  const { h, probs } = forward(x196, 1);
+  let best = 0;
+  for (let k = 1; k < OUT; k++) if (probs[k] > probs[best]) best = k;
+  return { probs, pred: best, h };
+}
+
+function evalAccuracy() {
+  let correct = 0;
+  const CHUNK = 100;
+  for (let s = 0; s < N_TEST; s += CHUNK) {
+    const B = Math.min(CHUNK, N_TEST - s);
+    const { probs } = forward(testX.subarray(s * PX, (s + B) * PX), B);
+    for (let b = 0; b < B; b++) {
+      let best = 0;
+      for (let k = 1; k < OUT; k++) if (probs[b * OUT + k] > probs[b * OUT + best]) best = k;
+      if (best === testLabels[s + b]) correct++;
+    }
+  }
+  return correct / N_TEST;
+}
+
+// ── 渲染工具 ──────────────────────────────────────────────────────────────────
+// RdBu 色带（蓝=负 白=0 红=正），移植自 viz_static
+const COLOR_STOPS = [
+  [-1.0, [49, 54, 149]], [-0.5, [69, 117, 180]], [-0.25, [145, 191, 219]],
+  [0.0, [247, 247, 247]],
+  [0.25, [253, 174, 97]], [0.5, [215, 48, 39]], [1.0, [165, 0, 38]],
+];
+function valToRGB(v) {
+  v = Math.max(-1, Math.min(1, v));
+  for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
+    const [v0, c0] = COLOR_STOPS[i], [v1, c1] = COLOR_STOPS[i + 1];
+    if (v >= v0 && v <= v1) {
+      const t = (v - v0) / (v1 - v0);
+      return c0.map((x, j) => Math.round(x + t * (c1[j] - x)));
+    }
+  }
+  return COLOR_STOPS[COLOR_STOPS.length - 1][1];
+}
+// 变化量色带：白(没动) → 橙(被拧得最多)
+function diffToRGB(v, maxV) {
+  if (maxV < 1e-10) return [247, 247, 247];
+  const t = Math.min(1, v / maxV);
+  return [Math.round(247 - t * 37), Math.round(247 - t * 142), Math.round(247 - t * 217)];
+}
+
+// 灰度数字图：values 可以是 uint8(0~255) 或 float(0~1)
+function renderDigit(canvas, values, float01) {
+  canvas.width = S; canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(S, S);
+  for (let i = 0; i < PX; i++) {
+    const v = float01 ? Math.round(values[i] * 255) : values[i];
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// 一个"打分小组"的旋钮照片：W1 的第 j 列（196 个值）按该列绝对值最大归一，RdBu 上色
+function renderWeightImage(canvas, W1, j, diffMode, sharedMax) {
+  canvas.width = S; canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(S, S);
+  let m = sharedMax;
+  if (m === undefined) {
+    m = 1e-10;
+    for (let i = 0; i < PX; i++) m = Math.max(m, Math.abs(W1[i * HIDDEN + j]));
+  }
+  for (let i = 0; i < PX; i++) {
+    const v = W1[i * HIDDEN + j];
+    const [R, G, B] = diffMode ? diffToRGB(Math.abs(v), m) : valToRGB(v / m);
+    img.data[i * 4] = R; img.data[i * 4 + 1] = G; img.data[i * 4 + 2] = B;
+    img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// 8×8 网格：64 个打分小组的旋钮照片（点击可打开参数检查器）
+function buildGrid(rootId, onClick) {
+  const root = document.getElementById(rootId);
+  root.innerHTML = '';
+  const canvases = [];
+  for (let j = 0; j < HIDDEN; j++) {
+    const cvs = document.createElement('canvas');
+    cvs.title = `打分小组 #${j}，点击查看具体数值`;
+    cvs.addEventListener('click', () => onClick(j));
+    root.appendChild(cvs);
+    canvases.push(cvs);
+  }
+  return canvases;
+}
+let weightCanvases = null, deltaCanvases = null;
+function renderWeightGrid() {
+  for (let j = 0; j < HIDDEN; j++) renderWeightImage(weightCanvases[j], model.W1, j, false);
+}
+
+// Δ 图两种模式：'mag' 幅度（|Δ| 白→橙），'dir' 方向（Δ 红=调大/蓝=调小）
+let deltaMode = 'mag';
+let lastDW1 = null;          // 保存最近一次「学一步」的变化量，切换模式时直接重渲染
+let lastDb1 = null;          // 同一步 b1（起评分）的变化量，供参数检查器显示
+function renderDeltaGrid() {
+  if (!lastDW1) return;
+  let m = 1e-10;
+  for (let i = 0; i < lastDW1.length; i++) m = Math.max(m, Math.abs(lastDW1[i]));
+  const mag = deltaMode === 'mag';
+  for (let j = 0; j < HIDDEN; j++) renderWeightImage(deltaCanvases[j], lastDW1, j, mag, m);
+  document.getElementById('delta-cap').textContent = mag
+    ? '旋钮的变化量——亮的地方就是这一步被拧动的旋钮（64 个打分小组各一张图）'
+    : '旋钮的变化方向——红=被调大（把这批卡片的形状往模板里刻），蓝=被调小（往外铲）';
+}
+function setDeltaMode(mode) {
+  deltaMode = mode;
+  document.getElementById('delta-mode-mag').classList.toggle('on', mode === 'mag');
+  document.getElementById('delta-mode-dir').classList.toggle('on', mode === 'dir');
+  renderDeltaGrid();
+}
+
+// 犯错程度折线图（移植简化自 viz_static 的 drawLossChart）
+const losses = [];   // {step, loss}
+function appendLoss(step, loss) { losses.push({ step, loss }); drawLossChart(); }
+function drawLossChart() {
+  const cvs = document.getElementById('loss-chart');
+  const W = cvs.width, H = cvs.height;
+  const ctx = cvs.getContext('2d');
+  const PAD = { top: 14, right: 16, bottom: 28, left: 46 };
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
+  if (losses.length < 2) {
+    ctx.fillStyle = '#8b949e'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('点「学一步」或「开始学习」，这里会画出犯错程度的变化', W / 2, H / 2);
+    return;
+  }
+  const xMin = losses[0].step, xMax = losses[losses.length - 1].step;
+  let yMin = Infinity, yMax = -Infinity;
+  for (const d of losses) { yMin = Math.min(yMin, d.loss); yMax = Math.max(yMax, d.loss); }
+  yMin = Math.max(0, yMin * 0.9); yMax *= 1.05;
+  const toX = s => PAD.left + (s - xMin) / (xMax - xMin + 1e-9) * (W - PAD.left - PAD.right);
+  const toY = l => H - PAD.bottom - (l - yMin) / (yMax - yMin + 1e-9) * (H - PAD.top - PAD.bottom);
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = PAD.top + i * (H - PAD.top - PAD.bottom) / 4;
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
+    ctx.fillStyle = '#8b949e'; ctx.font = '10px monospace'; ctx.textAlign = 'right';
+    ctx.fillText((yMax - i * (yMax - yMin) / 4).toFixed(2), PAD.left - 6, y + 3);
+  }
+  ctx.fillStyle = '#8b949e'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('刚开始', toX(xMin), H - 8);
+  ctx.fillText(`第 ${xMax} 批`, toX(xMax), H - 8);
+  ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 1.5; ctx.beginPath();
+  losses.forEach((d, i) => { const x = toX(d.step), y = toY(d.loss); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+  ctx.stroke();
+  const last = losses[losses.length - 1];
+  ctx.fillStyle = '#58a6ff';
+  ctx.beginPath(); ctx.arc(toX(last.step), toY(last.loss), 3, 0, Math.PI * 2); ctx.fill();
+}
+
+// 概率条：10 行，最高的高亮
+function buildPredBars(rootId) {
+  const root = document.getElementById(rootId);
+  root.innerHTML = '';
+  const rows = [];
+  for (let k = 0; k < OUT; k++) {
+    const item = document.createElement('div');
+    item.className = 'pred-item';
+    item.innerHTML = `<div class="pred-digit mono">${k}</div>` +
+      `<div class="pred-bar-bg"><div class="pred-bar"></div></div><div class="pred-pct mono">--</div>`;
+    root.appendChild(item);
+    rows.push(item);
+  }
+  return rows;
+}
+function renderProbBars(rows, probs) {
+  let best = 0;
+  for (let k = 1; k < OUT; k++) if (probs[k] > probs[best]) best = k;
+  rows.forEach((item, k) => {
+    item.classList.toggle('top', k === best);
+    item.querySelector('.pred-bar').style.width = (probs[k] * 100).toFixed(1) + '%';
+    item.querySelector('.pred-pct').textContent = (probs[k] * 100).toFixed(1) + '%';
+  });
+  return best;
+}
+
+// ── 参数检查器：点热图查看每一个参数的具体数值 ────────────────────────────────
+// 文字颜色按背景亮度自动选黑/白，保证数值可读
+function textColorFor(rgb) {
+  return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) > 140 ? '#111' : '#eee';
+}
+
+// 通用数值表：getVal(r,c) 取值，背景色与热图同款（valToRGB，按 absMax 归一）
+function buildValueTable(getVal, rows, cols, opts = {}) {
+  let absMax = 1e-10;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
+    absMax = Math.max(absMax, Math.abs(getVal(r, c)));
+  const tbl = document.createElement('table');
+  tbl.className = 'ptable' + (opts.wide ? ' wide' : '');
+  if (opts.colHead) {
+    const tr = document.createElement('tr');
+    if (opts.rowHead) tr.appendChild(Object.assign(document.createElement('td'), { className: 'head' }));
+    for (let c = 0; c < cols; c++) {
+      const td = document.createElement('td');
+      td.className = 'head';
+      td.textContent = opts.colHead(c);
+      tr.appendChild(td);
+    }
+    tbl.appendChild(tr);
+  }
+  for (let r = 0; r < rows; r++) {
+    const tr = document.createElement('tr');
+    if (opts.rowHead) {
+      const td = document.createElement('td');
+      td.className = 'head';
+      td.textContent = opts.rowHead(r);
+      tr.appendChild(td);
+    }
+    for (let c = 0; c < cols; c++) {
+      const v = getVal(r, c);
+      const rgb = opts.diffMode ? diffToRGB(v, absMax) : valToRGB(v / absMax);
+      const td = document.createElement('td');
+      td.style.background = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+      td.style.color = textColorFor(rgb);
+      td.textContent = v.toFixed(3);
+      td.title = `精确值 ${v}`;
+      tr.appendChild(td);
+    }
+    tbl.appendChild(tr);
+  }
+  return tbl;
+}
+
+function showModal(title, sub, nodes) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-sub').textContent = sub;
+  const body = document.getElementById('modal-body');
+  body.innerHTML = '';
+  for (const n of nodes) body.appendChild(n);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function secTitle(text) {
+  const d = document.createElement('div');
+  d.className = 'psec-title';
+  d.textContent = text;
+  return d;
+}
+function biasLine(html) {
+  const d = document.createElement('div');
+  d.className = 'bias-line';
+  d.innerHTML = html;
+  return d;
+}
+
+// 点模板热图：该打分小组的 196 个位置旋钮（W1 列）+ 起评分 b1 + 对十个评委的发言权重（W2 行）
+function openNeuronModal(j) {
+  showModal(`打分小组 #${j} 的全部参数`,
+    '这是训练到当前时刻的快照；训练中数值在变，重新打开即刷新。红=正（有墨迹加分），蓝=负（有墨迹扣分）。', [
+    secTitle(`196 个位置旋钮（对应 14×14 每个格子，W1 第 ${j} 列）`),
+    buildValueTable((r, c) => model.W1[(r * S + c) * HIDDEN + j], S, S),
+    secTitle('起评分（偏置 b1）——不看任何墨迹、无条件先给的分'),
+    biasLine(`b1[${j}] = <b>${model.b1[j].toFixed(4)}</b>`),
+    secTitle(`对十个评委的发言权重（W2 第 ${j} 行）——这个小组兴奋时，给各数字加/扣多少分`),
+    buildValueTable((r, c) => model.W2[j * OUT + c], 1, OUT, { wide: true, colHead: c => `评委 ${c}` }),
+  ]);
+}
+
+// 点 Δ 图：这一步该小组各旋钮的变化量
+function openDeltaModal(j) {
+  if (!lastDW1) return;
+  showModal(`打分小组 #${j}：这一步的变化量`,
+    '正数=旋钮被调大（把这批卡片的形状往模板里刻），负数=被调小（往外铲）。', [
+    secTitle(`196 个位置旋钮的变化量（ΔW1 第 ${j} 列）`),
+    buildValueTable((r, c) => lastDW1[(r * S + c) * HIDDEN + j], S, S),
+    secTitle('起评分的变化量'),
+    biasLine(`Δb1[${j}] = <b>${lastDb1[j].toFixed(6)}</b>`),
+  ]);
+}
+
+// 输出层参数：十个评委的底分 b2 + W2 全表
+function openOutputModal() {
+  showModal('输出层的全部参数',
+    '十个评委各有一个"底分"（不看任何证据先领的分），以及听取 64 个打分小组汇报时的加权表（W2 全表）。', [
+    secTitle('十个评委的底分（偏置 b2）'),
+    buildValueTable((r, c) => model.b2[c], 1, OUT, { wide: true, colHead: c => `评委 ${c}` }),
+    secTitle('W2 全表：64 个打分小组 × 10 个评委（行 = 小组，与上方热图编号一致）'),
+    buildValueTable((r, c) => model.W2[r * OUT + c], HIDDEN, OUT,
+      { wide: true, colHead: c => `评委 ${c}`, rowHead: r => `#${r}` }),
+  ]);
+}
+
+// 网络示意图：像素缩略 → 64 个小圆 → 0~9 十格（纯装饰，帮助建立直觉）
+function drawNetworkDiagram() {
+  const cvs = document.getElementById('net-diagram');
+  const ctx = cvs.getContext('2d');
+  const W = cvs.width, H = cvs.height;
+  ctx.clearRect(0, 0, W, H);
+  const inX = 90, hidX = W / 2, outX = W - 110;
+  // 连线（抽样画一部分，全画会糊成一团）
+  ctx.strokeStyle = 'rgba(139,148,158,0.14)'; ctx.lineWidth = 1;
+  for (let j = 0; j < HIDDEN; j += 4) {
+    const hy = 30 + (j / (HIDDEN - 1)) * (H - 60);
+    for (let r = 0; r < 6; r++) {
+      const iy = H / 2 - 63 + r * 25;
+      ctx.beginPath(); ctx.moveTo(inX + 32, iy); ctx.lineTo(hidX, hy); ctx.stroke();
+    }
+    for (let k = 0; k < OUT; k += 2) {
+      const oy = 32 + (k / (OUT - 1)) * (H - 64);
+      ctx.beginPath(); ctx.moveTo(hidX, hy); ctx.lineTo(outX - 14, oy); ctx.stroke();
+    }
+  }
+  // 左：一张示例卡片（14×14 放大）
+  const img = ctx.createImageData(S, S);
+  for (let i = 0; i < PX; i++) {
+    const v = trainImages[i];   // 第一张训练图
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+  }
+  const off = document.createElement('canvas'); off.width = S; off.height = S;
+  off.getContext('2d').putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, inX - 32, H / 2 - 64, 64, 64);
+  ctx.strokeStyle = '#30363d'; ctx.strokeRect(inX - 32, H / 2 - 64, 64, 64);
+  // 中：64 个小圆
+  ctx.fillStyle = '#58a6ff';
+  for (let j = 0; j < HIDDEN; j++) {
+    const y = 30 + (j / (HIDDEN - 1)) * (H - 60);
+    ctx.beginPath(); ctx.arc(hidX, y, 3, 0, Math.PI * 2); ctx.fill();
+  }
+  // 右：0~9 十个格子
+  ctx.font = '13px monospace'; ctx.textAlign = 'center';
+  for (let k = 0; k < OUT; k++) {
+    const y = 32 + (k / (OUT - 1)) * (H - 64);
+    ctx.fillStyle = '#161b22'; ctx.strokeStyle = '#30363d';
+    ctx.fillRect(outX - 14, y - 11, 28, 22); ctx.strokeRect(outX - 14, y - 11, 28, 22);
+    ctx.fillStyle = '#c9d1d9'; ctx.fillText(String(k), outX, y + 4);
+  }
+  // 文字标注
+  ctx.fillStyle = '#8b949e'; ctx.font = '12px sans-serif';
+  ctx.fillText('196 个格子', inX, H / 2 + 90);
+  ctx.fillText('64 个打分小组', hidX, H - 4);
+  ctx.fillText('给 0~9 打分', outX, H - 4);
+}
+
+// ── 步骤 1：卡片画廊 ─────────────────────────────────────────────────────────
+const galleryRng = mulberry32(7);
+function renderGallery() {
+  const root = document.getElementById('gallery');
+  root.innerHTML = '';
+  for (let n = 0; n < 40; n++) {
+    const i = Math.floor(galleryRng() * N_TRAIN);
+    const div = document.createElement('div');
+    div.className = 'g-item';
+    const cvs = document.createElement('canvas');
+    div.appendChild(cvs);
+    const lab = document.createElement('div');
+    lab.className = 'lab';
+    lab.textContent = '这是 ' + trainLabels[i];
+    div.appendChild(lab);
+    root.appendChild(div);
+    renderDigit(cvs, trainImages.subarray(i * PX, (i + 1) * PX), false);
+  }
+}
+
+// ── 步骤 2：8 道固定考题（训练中实时刷新）────────────────────────────────────
+const SAMPLE_IDX = [0, 1, 2, 3, 4, 5, 6, 7];   // 测试集已打乱且类别均衡，取前 8 张即可
+let sampleVerdicts = [];
+function buildSamples() {
+  const root = document.getElementById('samples');
+  root.innerHTML = '';
+  sampleVerdicts = [];
+  for (const i of SAMPLE_IDX) {
+    const div = document.createElement('div');
+    div.className = 'sample';
+    const cvs = document.createElement('canvas');
+    div.appendChild(cvs);
+    const v = document.createElement('div');
+    v.className = 'verdict';
+    div.appendChild(v);
+    root.appendChild(div);
+    renderDigit(cvs, testImages.subarray(i * PX, (i + 1) * PX), false);
+    sampleVerdicts.push(v);
+  }
+}
+function renderSamplePredictions() {
+  let nOk = 0;
+  SAMPLE_IDX.forEach((i, n) => {
+    const { pred } = predictOne(testX.subarray(i * PX, (i + 1) * PX));
+    const truth = testLabels[i];
+    const ok = pred === truth;
+    if (ok) nOk++;
+    sampleVerdicts[n].innerHTML = ok
+      ? `它猜：${pred} <span class="ok">✓</span>`
+      : `它猜：${pred} <span class="bad">✗</span><span class="note">（答案是 ${truth}）</span>`;
+  });
+  document.getElementById('sample-score').innerHTML =
+    `8 道题对了 <b>${nOk}</b> 道` + (trainedSteps === 0 ? '——和瞎猜差不多。' : '');
+}
+
+// ── 步骤 3：训练控制（单步 + 自动）──────────────────────────────────────────
+let trainedSteps = 0;      // 已训练的批数
+let epochPerm = null, epochPos = 0;
+let trainRng = null;
+let training = false;
+
+function shuffledIndices(rng) {
+  const n = cfg.nTrain;
+  const a = new Int32Array(n);
+  for (let i = 0; i < n; i++) a[i] = i;
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function nextBatch() {
+  if (!epochPerm || epochPos + HP.batch > cfg.nTrain) {
+    epochPerm = shuffledIndices(trainRng);
+    epochPos = 0;
+  }
+  const idxs = epochPerm.subarray(epochPos, epochPos + HP.batch);
+  epochPos += HP.batch;
+  return idxs;
+}
+
+// 初始化/重置一轮训练：读开关配置、换新模型、清空动量与进度
+function initRun() {
+  cfg = getConfig();
+  TOTAL_STEPS = HP.epochs * Math.floor(cfg.nTrain / HP.batch);
+  model = initModel(rngSeed);
+  vel = {
+    W1: new Float32Array(PX * HIDDEN), b1: new Float32Array(HIDDEN),
+    W2: new Float32Array(HIDDEN * OUT), b2: new Float32Array(OUT),
+  };
+  trainRng = mulberry32(rngSeed * 1000 + 1);
+  epochPerm = null; epochPos = 0;
+  trainedSteps = 0;
+  losses.length = 0;
+  lastDW1 = null;
+  lastDb1 = null;
+}
+
+function updateStats(acc) {
+  document.getElementById('stat-steps').textContent =
+    (trainedSteps * HP.batch).toLocaleString() + ' 张次';
+  if (acc !== undefined)
+    document.getElementById('stat-acc').textContent = (acc * 100).toFixed(1) + '%';
+}
+
+// 「学一步」：跑一个 batch，展示 猜测vs答案 + 旋钮变化热力图
+function stepOnce() {
+  const idxs = nextBatch();
+  const before = model.W1.slice();          // 拍一张"拧之前"的旋钮照片
+  const b1Before = model.b1.slice();
+  const first = idxs[0];
+  const { pred } = predictOne(trainX.subarray(first * PX, (first + 1) * PX));  // 训练前的猜测
+  const loss = trainStep(idxs);
+  trainedSteps++;
+
+  lastDW1 = new Float32Array(before.length);
+  for (let i = 0; i < before.length; i++) lastDW1[i] = model.W1[i] - before[i];
+  lastDb1 = new Float32Array(HIDDEN);
+  for (let j = 0; j < HIDDEN; j++) lastDb1[j] = model.b1[j] - b1Before[j];
+
+  document.getElementById('stepbox').classList.add('show');
+  renderDigit(document.getElementById('step-digit'), trainImages.subarray(first * PX, (first + 1) * PX), false);
+  const truth = trainLabels[first];
+  document.getElementById('step-guess').innerHTML = pred === truth
+    ? `它猜 ${pred}，答案 ${truth} <span style="color:var(--green)">✓ 猜对了</span>`
+    : `它猜 ${pred}，答案 ${truth} <span style="color:var(--red)">✗ 猜错了，拧！</span>`;
+  renderDeltaGrid();
+
+  appendLoss(trainedSteps, loss);
+  renderWeightGrid();
+  renderSamplePredictions();
+  updateStats(evalAccuracy());
+}
+
+// 成绩对比表：每轮训练完成自动记一行
+const runHistory = [];
+function renderRunsTable() {
+  const wrap = document.getElementById('runs-wrap');
+  const tbl = document.getElementById('runs-table');
+  wrap.style.display = runHistory.length ? '' : 'none';
+  const bestAcc = Math.max(...runHistory.map(r => r.acc));
+  const mark = v => v ? '✓' : '—';
+  tbl.innerHTML = '<tr><th>轮次</th><th>教材翻倍</th><th>惯性下坡</th><th>先大步后小步</th><th>随机挪一格</th><th>考试成绩</th></tr>' +
+    runHistory.map((r, i) =>
+      `<tr class="${r.acc === bestAcc ? 'best' : ''}"><td>${i + 1}</td><td>${mark(r.data)}</td>` +
+      `<td>${mark(r.momentum)}</td><td>${mark(r.decay)}</td><td>${mark(r.aug)}</td>` +
+      `<td class="acc">${(r.acc * 100).toFixed(1)}%</td></tr>`).join('');
+}
+function setLabEnabled(on) {
+  for (const id of ['opt-data', 'opt-momentum', 'opt-decay', 'opt-aug'])
+    document.getElementById(id).disabled = !on;
+}
+
+// 「开始学习」：自动训练到 20 遍，用 setTimeout 分片保持页面流畅
+function startTraining() {
+  if (training) return;
+  training = true;
+  document.getElementById('btn-train').disabled = true;
+  document.getElementById('btn-step').disabled = true;
+  setLabEnabled(false);
+  document.getElementById('stepbox').classList.remove('show');
+
+  const CHUNK = 20;          // 每片 20 批，让出主线程一次
+  let lossAccum = 0, lossN = 0;
+
+  function trainChunk() {
+    for (let n = 0; n < CHUNK && trainedSteps < TOTAL_STEPS; n++) {
+      lossAccum += trainStep(nextBatch());
+      lossN++;
+      trainedSteps++;
+    }
+    appendLoss(trainedSteps, lossAccum / lossN);       // 20 步滑动平均，曲线更平滑
+    lossAccum = 0; lossN = 0;
+    updateStats();
+
+    if (trainedSteps % 100 < CHUNK) {                  // 每 ~100 批：重算成绩 + 刷新图
+      updateStats(evalAccuracy());
+      renderWeightGrid();
+      renderSamplePredictions();
+    }
+
+    if (trainedSteps < TOTAL_STEPS) {
+      setTimeout(trainChunk, 0);
+    } else {
+      const acc = evalAccuracy();
+      updateStats(acc);
+      renderWeightGrid();
+      renderSamplePredictions();
+      training = false;
+      runHistory.push({ data: cfg.nTrain === N_TRAIN, momentum: cfg.momentum > 0,
+        decay: cfg.decay, aug: cfg.aug, acc });
+      renderRunsTable();
+      const btn = document.getElementById('btn-train');
+      btn.textContent = `学习完成 ✓ 正确率 ${(acc * 100).toFixed(1)}%`;
+      btn.classList.add('done');
+      document.getElementById('btn-step').disabled = false;
+      setLabEnabled(true);
+      const sum = document.getElementById('train-summary');
+      sum.textContent = `✓ 学习完成。它没有背答案——那 500 张考试题它从没见过，却答对了 ${(acc * 100).toFixed(0)}%。` +
+        `这就是"学到了规律"和"背下了答案"的区别。现在去步骤 4 亲手考考它！`;
+      sum.classList.add('show');
+      document.getElementById('draw-board').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+  setTimeout(trainChunk, 0);
+}
+
+function resetAll() {
+  if (training) return;
+  rngSeed += 1;                       // 换种子，可反复演示"随机 → 有序"
+  initRun();
+  const btn = document.getElementById('btn-train');
+  btn.textContent = '▶ 开始学习（几秒钟）';
+  btn.classList.remove('done');
+  btn.disabled = false;
+  document.getElementById('btn-step').disabled = false;
+  document.getElementById('stepbox').classList.remove('show');
+  document.getElementById('train-summary').classList.remove('show');
+  document.getElementById('stat-acc').textContent = '--';
+  updateStats();
+  drawLossChart();
+  renderWeightGrid();
+  renderSamplePredictions();
+  document.getElementById('pred-title').textContent = '在黑板上写一个数字试试';
+}
+
+// ── 步骤 4：手绘板 ───────────────────────────────────────────────────────────
+const board = document.getElementById('draw-board');
+const bctx = board.getContext('2d');
+let drawing = false, lastX = 0, lastY = 0, hasInk = false;
+let predBarRows = null;
+let predictTimer = null;
+
+function clearBoard() {
+  bctx.fillStyle = '#000';
+  bctx.fillRect(0, 0, board.width, board.height);
+  hasInk = false;
+  document.getElementById('pred-title').textContent = '在黑板上写一个数字试试';
+  document.getElementById('seen-canvas').getContext('2d').clearRect(0, 0, S, S);
+  lastHidden = null;
+  renderHiddenMap();
+  document.getElementById('untrained-warn').classList.remove('show');
+  predBarRows.forEach(item => {
+    item.classList.remove('top');
+    item.querySelector('.pred-bar').style.width = '0';
+    item.querySelector('.pred-pct').textContent = '--';
+  });
+}
+
+function boardPos(e) {
+  const r = board.getBoundingClientRect();
+  return [(e.clientX - r.left) * board.width / r.width, (e.clientY - r.top) * board.height / r.height];
+}
+board.addEventListener('pointerdown', e => {
+  drawing = true; hasInk = true;
+  board.setPointerCapture(e.pointerId);
+  [lastX, lastY] = boardPos(e);
+  bctx.strokeStyle = '#fff'; bctx.lineWidth = 20; bctx.lineCap = 'round'; bctx.lineJoin = 'round';
+  bctx.beginPath(); bctx.moveTo(lastX, lastY); bctx.lineTo(lastX + .1, lastY + .1); bctx.stroke();
+  throttledPredict();
+});
+board.addEventListener('pointermove', e => {
+  if (!drawing) return;
+  const [x, y] = boardPos(e);
+  bctx.beginPath(); bctx.moveTo(lastX, lastY); bctx.lineTo(x, y); bctx.stroke();
+  [lastX, lastY] = [x, y];
+  throttledPredict();
+});
+board.addEventListener('pointerup', () => { drawing = false; predictDrawing(); });
+
+function throttledPredict() {
+  if (predictTimer) return;
+  predictTimer = setTimeout(() => { predictTimer = null; predictDrawing(); }, 120);
+}
+
+// 预处理：包围盒 → 等比缩到长边 10px → 质心居中到 14×14（复刻 MNIST 的规范化）
+// 「自动裁剪居中」关闭时走 rawDownsample：画布原样缩成 14×14，写在哪机器就从哪看——
+// 用于演示"位置也是特征的一部分"（模板按像素位置对齐，字不居中就对不上模板）
+function rawDownsample() {
+  const W = board.width, H = board.height;
+  const data = bctx.getImageData(0, 0, W, H).data;
+  const bs = W / S;                       // 280/14 = 20，每块 20×20 取均值
+  const out = new Float32Array(PX);
+  let mass = 0;
+  for (let r = 0; r < S; r++) {
+    for (let c = 0; c < S; c++) {
+      let sum = 0;
+      for (let y = r * bs; y < (r + 1) * bs; y++)
+        for (let x = c * bs; x < (c + 1) * bs; x++) sum += data[(y * W + x) * 4];
+      const v = sum / (bs * bs) / 255;
+      out[r * S + c] = v;
+      mass += v;
+    }
+  }
+  return mass > 0 ? out : null;
+}
+
+function preprocessDrawing() {
+  if (!document.getElementById('opt-center').checked) return rawDownsample();
+  const W = board.width, H = board.height;
+  const data = bctx.getImageData(0, 0, W, H).data;
+  let minX = W, maxX = -1, minY = H, maxY = -1;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (data[(y * W + x) * 4] > 10) {        // 黑底白笔：R 通道即墨量
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;                    // 画布是空的
+
+  const bw = maxX - minX + 1, bh = maxY - minY + 1;
+  const scale = 10 / Math.max(bw, bh);          // MNIST 规范：主体占 20/28 ≈ 14 里的 10
+  const dw = Math.max(1, Math.round(bw * scale));
+  const dh = Math.max(1, Math.round(bh * scale));
+
+  // 盒式平均降采样：每个目标像素取源矩形区域的灰度均值（比 drawImage 更可控）
+  const small = new Float32Array(dw * dh);
+  for (let r = 0; r < dh; r++) {
+    for (let c = 0; c < dw; c++) {
+      const y0 = minY + Math.floor(r * bh / dh), y1 = minY + Math.max(y0 - minY + 1, Math.floor((r + 1) * bh / dh));
+      const x0 = minX + Math.floor(c * bw / dw), x1 = minX + Math.max(x0 - minX + 1, Math.floor((c + 1) * bw / dw));
+      let sum = 0, n = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { sum += data[(y * W + x) * 4]; n++; }
+      small[r * dw + c] = sum / n / 255;
+    }
+  }
+
+  // 灰度加权质心
+  let cx = 0, cy = 0, mass = 0;
+  for (let r = 0; r < dh; r++) for (let c = 0; c < dw; c++) {
+    const v = small[r * dw + c];
+    cx += c * v; cy += r * v; mass += v;
+  }
+  cx /= mass; cy /= mass;
+
+  // 贴入 14×14，使质心落在中心 (6.5, 6.5)，偏移夹紧防出界
+  const out = new Float32Array(PX);
+  let ox = Math.round(6.5 - cx), oy = Math.round(6.5 - cy);
+  ox = Math.max(0, Math.min(S - dw, ox));
+  oy = Math.max(0, Math.min(S - dh, oy));
+  for (let r = 0; r < dh; r++) for (let c = 0; c < dw; c++)
+    out[(r + oy) * S + (c + ox)] = small[r * dw + c];
+  return out;
+}
+
+// 隐藏层中间结果：8×8 热力图（白→橙 = 兴奋程度），排列顺序与步骤 3 的模板网格一致
+let lastHidden = null;
+function renderHiddenMap() {
+  const cvs = document.getElementById('hidden-map');
+  const ctx = cvs.getContext('2d');
+  if (!lastHidden) { ctx.clearRect(0, 0, 8, 8); return; }
+  let m = 1e-10;
+  for (let j = 0; j < HIDDEN; j++) m = Math.max(m, lastHidden[j]);
+  const img = ctx.createImageData(8, 8);
+  for (let j = 0; j < HIDDEN; j++) {
+    const [R, G, B] = diffToRGB(lastHidden[j], m);
+    img.data[j * 4] = R; img.data[j * 4 + 1] = G; img.data[j * 4 + 2] = B;
+    img.data[j * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+function openHiddenModal() {
+  if (!lastHidden) return;
+  showModal('隐藏层的 64 个中间结果',
+    '你这幅字被 64 张模板各打一次分（不及格已归零）的报告——这就是网络"眼中"的你的字。' +
+    '编号按行排列，与步骤 3 的 64 张模板一一对应；数值越大 = 该模板匹配得越强。', [
+    buildValueTable((r, c) => lastHidden[r * 8 + c], 8, 8, {
+      wide: true, diffMode: true, colHead: c => `+${c}`, rowHead: r => `#${r * 8}`,
+    }),
+  ]);
+}
+
+function predictDrawing() {
+  if (!hasInk) return;
+  const x = preprocessDrawing();
+  if (!x) return;
+  renderDigit(document.getElementById('seen-canvas'), x, true);
+  const { probs, pred, h } = predictOne(x);
+  lastHidden = h;
+  renderHiddenMap();
+  renderProbBars(predBarRows, probs);
+  document.getElementById('pred-title').textContent =
+    `它猜这是：${pred}（把握 ${(probs[pred] * 100).toFixed(0)}%）`;
+  document.getElementById('untrained-warn').classList.toggle('show', trainedSteps === 0);
+}
+
+// ── 页面初始化 ───────────────────────────────────────────────────────────────
+document.getElementById('btn-shuffle').addEventListener('click', renderGallery);
+document.getElementById('btn-step').addEventListener('click', stepOnce);
+document.getElementById('btn-train').addEventListener('click', startTraining);
+document.getElementById('btn-reset').addEventListener('click', resetAll);
+document.getElementById('btn-clear').addEventListener('click', clearBoard);
+document.getElementById('delta-mode-mag').addEventListener('click', () => setDeltaMode('mag'));
+document.getElementById('delta-mode-dir').addEventListener('click', () => setDeltaMode('dir'));
+document.getElementById('btn-output-params').addEventListener('click', openOutputModal);
+document.getElementById('hidden-map').addEventListener('click', openHiddenModal);
+for (const id of ['opt-data', 'opt-momentum', 'opt-decay', 'opt-aug'])
+  document.getElementById(id).addEventListener('change', resetAll);   // 改开关 = 重新开始
+document.getElementById('opt-center').addEventListener('change', predictDrawing);  // 切换立即重新识别
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+initRun();
+weightCanvases = buildGrid('weight-grid', openNeuronModal);
+deltaCanvases = buildGrid('delta-grid', openDeltaModal);
+predBarRows = buildPredBars('pred-bars');
+
+renderGallery();
+buildSamples();
+drawNetworkDiagram();
+renderSamplePredictions();
+renderWeightGrid();
+drawLossChart();
+updateStats();
+clearBoard();
+</script>
+</body>
+</html>
