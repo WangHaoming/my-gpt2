@@ -1,11 +1,13 @@
-"""生成 mnist_data.js —— 手写数字演示页面的数据文件。
+"""生成 mnist_data.js / mnist_data_full.js —— 手写数字演示页面的数据文件。
 
 一次性脚本：
 1. 下载 MNIST 的 4 个 IDX 文件（缓存到 src/math/.cache/，二次运行跳过下载）
 2. 纯 gzip + struct 解析 IDX 格式（不依赖 torchvision / numpy）
 3. 28×28 → 14×14（每 2×2 块取均值）
-4. 类别均衡抽样：训练 3000 张（每类 300）、测试 500 张（每类 50），固定种子打乱
+4. 类别均衡抽样：训练 12000 张（每类 1200）、测试 500 张（每类 50），固定种子打乱
 5. base64 编码后写出 mnist_data.js，供 index.html 用 <script src> 加载
+6. 另写出 mnist_data_full.js：全部 60000 张训练图（约 16MB），
+   页面勾选「海量教材」时才动态加载
 
 用法：
     python src/math/make_dataset.py            # 生成 mnist_data.js
@@ -142,6 +144,30 @@ def write_js(train_i: bytes, train_l: bytes, test_i: bytes, test_l: bytes) -> Pa
     return out
 
 
+def write_full_js(images: bytes, labels: bytes, rows: int, cols: int) -> Path:
+    """写出 mnist_data_full.js：全部 60000 张训练图降采样后 base64。
+
+    独立于 mnist_data.js，页面勾选「海量教材（60000 张）」时才动态加载，
+    避免 ~16MB 的文件拖慢默认打开速度。测试集仍用 mnist_data.js 里的 500 张。
+    """
+    n = len(labels)
+    px = rows * cols
+    down = b"".join(downsample(images[i * px:(i + 1) * px]) for i in range(n))
+    b64 = lambda b: base64.b64encode(b).decode()  # noqa: E731
+    out = HERE / "mnist_data_full.js"
+    out.write_text(
+        "// 由 make_dataset.py 自动生成，请勿手改。\n"
+        "// 全部 60000 张 MNIST 训练图，14x14 uint8 灰度，base64，按行主序平铺。\n"
+        "const MNIST_FULL = {\n"
+        f"  nTrain: {n},\n"
+        f'  trainImages: "{b64(down)}",\n'
+        f'  trainLabels: "{b64(labels)}",\n'
+        "};\n",
+        encoding="utf-8",
+    )
+    return out
+
+
 # ── torch 对照训练（--check）─────────────────────────────────────────────────
 
 def check_with_torch(train_i: bytes, train_l: bytes, test_i: bytes, test_l: bytes) -> None:
@@ -234,6 +260,10 @@ def main() -> None:
     print("4) 写出 mnist_data.js …")
     out = write_js(tr_i, tr_l, te_i, te_l)
     print(f"  {out}（{out.stat().st_size / 1024:.0f} KB）")
+
+    print("4b) 写出 mnist_data_full.js（全部 60000 张）…")
+    out_full = write_full_js(train_images, train_labels, rows, cols)
+    print(f"  {out_full}（{out_full.stat().st_size / 1024 / 1024:.1f} MB）")
 
     print("5) 自检（第一张训练图的字符画，肉眼确认是个数字且方向正常）：")
     print(ascii_art(tr_i[:SIZE * SIZE], tr_l[0]))

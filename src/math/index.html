@@ -177,7 +177,7 @@ canvas { image-rendering: pixelated; }
     <div class="step-head"><div class="step-num">1</div><h2 data-i18n="s1-title">教材：给机器看的例子</h2></div>
     <p data-i18n="s1-p">人教小孩认数字，是拿卡片一张张指给他看："这是 3，这是 7。"教机器也一样——下面是我们准备的
        <b>6000 张"卡片"</b>，每张都是真人手写的数字，并且标好了正确答案（库里还备着 6000 张，
-       步骤 3 可以做"教材翻倍"实验）。机器要学的，就是从这些例子里找规律。</p>
+       步骤 3 可以做"教材翻倍"实验；还能一键调来全部 60000 张"海量教材"）。机器要学的，就是从这些例子里找规律。</p>
     <div class="gallery" id="gallery"></div>
     <button class="btn" id="btn-shuffle" data-i18n="btn-shuffle">🔀 换一批看看</button>
     <p class="note" style="margin-top:14px" data-i18n="s1-note">注意：机器看到的不是"图"，而是 14×14=196 个表示深浅的数字。它只会算数，不会"看"。</p>
@@ -202,8 +202,9 @@ canvas { image-rendering: pixelated; }
     <p data-i18n="s3-p">机器"刷题"的方法：每次拿 32 张卡片，先自己猜，再对答案；猜错了，就把导致出错的旋钮往正确方向
        <b>拧一点点</b>。想看清每一步，点「学一步」；想直接看结果，点「开始学习」快进。</p>
     <div class="lab-panel">
-      <div class="lab-title" data-i18n="lab-title">改进实验室：下面四招都能让它学得更好。勾选后训练，成绩自动记入对比表——试试关掉几个再训，看看差多少。（改动开关会自动重新开始）</div>
+      <div class="lab-title" data-i18n="lab-title">改进实验室：下面几招都能让它学得更好。勾选后训练，成绩自动记入对比表——试试关掉几个再训，看看差多少。（改动开关会自动重新开始）</div>
       <label><input type="checkbox" id="opt-data"><span data-i18n="lab-data"><b>教材翻倍</b> <span class="why">—— 从 6000 张翻倍到 12000 张卡片</span></span></label>
+      <label><input type="checkbox" id="opt-data60"><span data-i18n="lab-data60"><b>海量教材（60000 张）</b> <span class="why">—— 一次用上全部 60000 张卡片（首次勾选要加载约 15MB 数据；训练约 20~30 秒，勾选后覆盖"教材翻倍"）</span></span><span class="why" id="data60-status"></span></label>
       <label><input type="checkbox" id="opt-momentum"><span data-i18n="lab-mom"><b>惯性下坡（动量）</b> <span class="why">—— 连续几步方向一致就越走越快，抵消单批例题的"任性"</span></span></label>
       <label><input type="checkbox" id="opt-decay"><span data-i18n="lab-decay"><b>先大步后小步</b> <span class="why">—— 刚开始大胆拧，快学完时改成细细微调</span></span></label>
       <label><input type="checkbox" id="opt-aug"><span data-i18n="lab-aug"><b>卡片随机挪一格</b> <span class="why">—— 每次看卡片前随机平移一点，免费变出更多"新写法"</span></span></label>
@@ -237,7 +238,7 @@ canvas { image-rendering: pixelated; }
       <div class="stat"><div class="k" data-i18n="stat-acc-k">考试成绩（500 张它从没见过的新图）</div><div class="v mono green" id="stat-acc">--</div></div>
     </div>
 
-    <div class="chart-title" data-i18n="chart-loss-title">犯错程度（越低越好）</div>
+    <div class="chart-title"><span data-i18n="chart-loss-title">犯错程度（越低越好）</span><span id="stat-loss"></span></div>
     <canvas id="loss-chart" width="796" height="220"></canvas>
 
     <div class="chart-title"><span data-i18n="chart-weights-title">中间那 64 个"打分小组"各自在关注什么——训练前是随机雪花，训练后会浮现笔画的影子，规律就存在这些旋钮里。
@@ -291,7 +292,7 @@ canvas { image-rendering: pixelated; }
     <p data-i18n="s5-p1">刚才这个小网络和 ChatGPT 这类"大模型"，本质上是同一件事，只是三个数字不一样：</p>
     <table class="cmp-table" data-i18n="s5-table">
       <tr><th></th><th>这个小演示</th><th>ChatGPT 这样的大模型</th></tr>
-      <tr><td>看的例子</td><td>6000~12000 张手写数字</td><td>几乎整个互联网的文字</td></tr>
+      <tr><td>看的例子</td><td>6000~60000 张手写数字</td><td>几乎整个互联网的文字</td></tr>
       <tr><td>旋钮（参数）数量</td><td>1.3 万个</td><td>上千亿个</td></tr>
       <tr><td>学的任务</td><td>看图 → 猜是哪个数字</td><td>看前文 → 猜下一个字是什么</td></tr>
     </table>
@@ -348,6 +349,35 @@ for (let i = 0; i < trainImages.length; i++) trainX[i] = trainImages[i] / 255;
 const testX = new Float32Array(testImages.length);
 for (let i = 0; i < testImages.length; i++) testX[i] = testImages[i] / 255;
 
+// 海量教材：全部 60000 张训练图在独立文件 mnist_data_full.js（约 15MB）里，
+// 勾选开关时才动态注入 <script> 加载（file:// 下也能用），避免拖慢默认打开速度
+let fullReady = false, fullLoading = false;
+let fullImages = null, fullLabels = null, fullX = null;
+function setData60Status(text) { document.getElementById('data60-status').textContent = text; }
+function ensureFullData() {
+  if (fullReady || fullLoading) return;
+  fullLoading = true;
+  setData60Status(EN() ? ' (loading the 15MB textbook…)' : '（教材加载中，约 15MB…）');
+  const s = document.createElement('script');
+  s.src = 'mnist_data_full.js';
+  s.onload = () => {
+    fullImages = b64ToU8(MNIST_FULL.trainImages);
+    fullLabels = b64ToU8(MNIST_FULL.trainLabels);
+    fullX = new Float32Array(fullImages.length);
+    for (let i = 0; i < fullImages.length; i++) fullX[i] = fullImages[i] / 255;
+    fullReady = true; fullLoading = false;
+    setData60Status('');
+    resetAll();                                  // 数据就位，按当前开关重新初始化一轮
+  };
+  s.onerror = () => {
+    fullLoading = false;
+    document.getElementById('opt-data60').checked = false;
+    setData60Status(EN() ? ' (load failed — mnist_data_full.js missing?)' : '（加载失败——找不到 mnist_data_full.js？）');
+    resetAll();
+  };
+  document.head.appendChild(s);
+}
+
 // ── 随机数（固定种子，保证"训练前瞎猜"的样子每次刷新一致）──────────────────────
 function mulberry32(seed) {
   return function () {
@@ -371,13 +401,18 @@ let model = null;      // {W1, b1, W2, b2} 全部 Float32Array 平铺
 let vel = null;        // 动量的"速度"缓存，与 model 同形状
 let rngSeed = 42;
 
+// 本轮训练实际使用的教材（默认 12000 张的子集；海量教材就位后指向全量 60000 张）
+let TX = trainX, TL = trainLabels, TIMG = trainImages;
+
 // 改进实验室：读四个开关，得到本轮训练配置（与 make_dataset.py --check 的 torch 对照一致）
 let cfg = null;
 let TOTAL_STEPS = 0;
 function getConfig() {
   const on = id => document.getElementById(id).checked;
   return {
-    nTrain: on('opt-data') ? N_TRAIN : N_TRAIN / 2,   // 教材翻倍：12000 vs 6000
+    // 海量教材（60000 张，数据就位后生效）优先于教材翻倍（12000 vs 6000）
+    nTrain: on('opt-data60') && fullReady ? fullLabels.length
+          : on('opt-data') ? N_TRAIN : N_TRAIN / 2,
     momentum: on('opt-momentum') ? 0.9 : 0,           // 惯性下坡
     lr: on('opt-momentum') ? 0.05 : 0.2,              // 有惯性时步子要小，否则冲过头
     decay: on('opt-decay'),                            // 先大步后小步（线性衰减到 10%）
@@ -435,7 +470,7 @@ function trainStep(idxs) {
   const B = idxs.length;
   const xs = new Float32Array(B * PX);
   for (let b = 0; b < B; b++) {
-    const src = trainX.subarray(idxs[b] * PX, (idxs[b] + 1) * PX);
+    const src = TX.subarray(idxs[b] * PX, (idxs[b] + 1) * PX);
     if (!cfg.aug) { xs.set(src, b * PX); continue; }
     // 数据增强：随机平移 ±1 像素（出界补 0），等于免费变出"同一个字的新写法"
     const dx = Math.floor(trainRng() * 3) - 1, dy = Math.floor(trainRng() * 3) - 1;
@@ -455,7 +490,7 @@ function trainStep(idxs) {
   let loss = 0;
   const dz2 = new Float32Array(B * OUT);
   for (let b = 0; b < B; b++) {
-    const y = trainLabels[idxs[b]], po = b * OUT;
+    const y = TL[idxs[b]], po = b * OUT;
     loss -= Math.log(probs[po + y] + 1e-12);
     for (let k = 0; k < OUT; k++) dz2[po + k] = (probs[po + k] - (k === y ? 1 : 0)) / B;
   }
@@ -633,7 +668,19 @@ function setDeltaMode(mode) {
 
 // 犯错程度折线图（移植简化自 viz_static 的 drawLossChart）
 const losses = [];   // {step, loss}
-function appendLoss(step, loss) { losses.push({ step, loss }); drawLossChart(); }
+function appendLoss(step, loss) { losses.push({ step, loss }); lastLoss = loss; renderLossStat(); drawLossChart(); }
+
+// 标题旁的实时读数：当前犯错程度 L + 换算成"给正确答案的平均把握" e^−L
+// （物理意义见 basic.md 附录 Q4：L=2.30 即纯瞎猜的 10% 把握，L→0 即把握 →100%）
+let lastLoss = null;
+function renderLossStat() {
+  const el = document.getElementById('stat-loss');
+  if (lastLoss === null) { el.innerHTML = ''; return; }
+  const conf = (Math.exp(-lastLoss) * 100).toFixed(0);
+  el.innerHTML = EN()
+    ? ` — now <b style="color:var(--accent)">${lastLoss.toFixed(2)}</b> (≈ ${conf}% average confidence in the correct answer)`
+    : `——当前 <b style="color:var(--accent)">${lastLoss.toFixed(2)}</b>（≈ 给正确答案的平均把握 ${conf}%）`;
+}
 function drawLossChart() {
   const cvs = document.getElementById('loss-chart');
   const W = cvs.width, H = cvs.height;
@@ -955,6 +1002,10 @@ function nextBatch() {
 // 初始化/重置一轮训练：读开关配置、换新模型、清空动量与进度
 function initRun() {
   cfg = getConfig();
+  const useFull = fullReady && cfg.nTrain > N_TRAIN;
+  TX = useFull ? fullX : trainX;
+  TL = useFull ? fullLabels : trainLabels;
+  TIMG = useFull ? fullImages : trainImages;
   TOTAL_STEPS = HP.epochs * Math.floor(cfg.nTrain / HP.batch);
   model = initModel(rngSeed);
   vel = {
@@ -965,6 +1016,7 @@ function initRun() {
   epochPerm = null; epochPos = 0;
   trainedSteps = 0;
   losses.length = 0;
+  lastLoss = null;
   lastDW1 = null;
   lastDb1 = null;
 }
@@ -992,7 +1044,7 @@ function stepOnce() {
   const before = model.W1.slice();          // 拍一张"拧之前"的旋钮照片
   const b1Before = model.b1.slice();
   const first = idxs[0];
-  const { pred } = predictOne(trainX.subarray(first * PX, (first + 1) * PX));  // 训练前的猜测
+  const { pred } = predictOne(TX.subarray(first * PX, (first + 1) * PX));  // 训练前的猜测
   const loss = trainStep(idxs);
   trainedSteps++;
 
@@ -1002,8 +1054,8 @@ function stepOnce() {
   for (let j = 0; j < HIDDEN; j++) lastDb1[j] = model.b1[j] - b1Before[j];
 
   document.getElementById('stepbox').classList.add('show');
-  renderDigit(document.getElementById('step-digit'), trainImages.subarray(first * PX, (first + 1) * PX), false);
-  lastStepInfo = { pred, truth: trainLabels[first] };
+  renderDigit(document.getElementById('step-digit'), TIMG.subarray(first * PX, (first + 1) * PX), false);
+  lastStepInfo = { pred, truth: TL[first] };
   renderStepGuess();
   renderDeltaGrid();
 
@@ -1033,15 +1085,15 @@ function renderRunsTable() {
   const bestAcc = Math.max(...runHistory.map(r => r.acc));
   const mark = v => v ? '✓' : '—';
   tbl.innerHTML = (EN()
-    ? '<tr><th>Run</th><th>Double data</th><th>Momentum</th><th>Step decay</th><th>Random nudge</th><th>Exam score</th></tr>'
-    : '<tr><th>轮次</th><th>教材翻倍</th><th>惯性下坡</th><th>先大步后小步</th><th>随机挪一格</th><th>考试成绩</th></tr>') +
+    ? '<tr><th>Run</th><th>Cards</th><th>Momentum</th><th>Step decay</th><th>Random nudge</th><th>Exam score</th></tr>'
+    : '<tr><th>轮次</th><th>教材（张）</th><th>惯性下坡</th><th>先大步后小步</th><th>随机挪一格</th><th>考试成绩</th></tr>') +
     runHistory.map((r, i) =>
-      `<tr class="${r.acc === bestAcc ? 'best' : ''}"><td>${i + 1}</td><td>${mark(r.data)}</td>` +
+      `<tr class="${r.acc === bestAcc ? 'best' : ''}"><td>${i + 1}</td><td>${r.nTrain.toLocaleString()}</td>` +
       `<td>${mark(r.momentum)}</td><td>${mark(r.decay)}</td><td>${mark(r.aug)}</td>` +
       `<td class="acc">${(r.acc * 100).toFixed(1)}%</td></tr>`).join('');
 }
 function setLabEnabled(on) {
-  for (const id of ['opt-data', 'opt-momentum', 'opt-decay', 'opt-aug'])
+  for (const id of ['opt-data', 'opt-data60', 'opt-momentum', 'opt-decay', 'opt-aug'])
     document.getElementById(id).disabled = !on;
 }
 
@@ -1081,7 +1133,7 @@ function startTraining() {
       renderWeightGrid();
       renderSamplePredictions();
       training = false;
-      runHistory.push({ data: cfg.nTrain === N_TRAIN, momentum: cfg.momentum > 0,
+      runHistory.push({ nTrain: cfg.nTrain, momentum: cfg.momentum > 0,
         decay: cfg.decay, aug: cfg.aug, acc });
       renderRunsTable();
       doneAcc = acc;
@@ -1114,11 +1166,17 @@ function resetAll() {
   document.getElementById('train-summary').classList.remove('show');
   document.getElementById('stat-acc').textContent = '--';
   updateStats();
+  renderLossStat();
   drawLossChart();
   renderWeightGrid();
   renderSamplePredictions();
   lastDrawPred = null;
   setPredDefault();
+  // 勾了海量教材但 15MB 数据还没到位：先别让训练开始，加载完成会再次 resetAll 解锁
+  if (document.getElementById('opt-data60').checked && !fullReady) {
+    document.getElementById('btn-train').disabled = true;
+    document.getElementById('btn-step').disabled = true;
+  }
 }
 
 // ── 步骤 4：手绘板 ───────────────────────────────────────────────────────────
@@ -1307,7 +1365,7 @@ const I18N_EN = {
   'hero-h1': 'How does a machine “learn” to read digits?',
   'hero-sub': 'A mini neural network that trains live in your browser.<br>Nothing to install — scroll down and walk through the 5 steps.',
   's1-title': 'The textbook: examples for the machine',
-  's1-p': 'We teach kids digits with flashcards: “this is a 3, this is a 7.” Teaching a machine works the same way — below are <b>6,000 “flashcards”</b>, each a real handwritten digit labeled with the correct answer (another 6,000 wait in reserve — try the “Double the textbook” experiment in Step 3). All the machine has to learn is the patterns hidden in these examples.',
+  's1-p': 'We teach kids digits with flashcards: “this is a 3, this is a 7.” Teaching a machine works the same way — below are <b>6,000 “flashcards”</b>, each a real handwritten digit labeled with the correct answer (another 6,000 wait in reserve — try the “Double the textbook” experiment in Step 3, or summon the whole 60,000-card textbook). All the machine has to learn is the patterns hidden in these examples.',
   'btn-shuffle': '🔀 Show another batch',
   's1-note': 'Note: the machine doesn’t see a “picture” — it sees 14×14 = 196 numbers describing brightness. It can only do arithmetic; it cannot “look”.',
   's2-title': 'Before training: it can only guess',
@@ -1315,8 +1373,9 @@ const I18N_EN = {
   's2-p2': 'The network has <b>13,258 tiny adjustable “knobs”</b> (the term is parameters); they decide how much each connection matters. Fresh out of the box every knob sits at a random position — so its answers are pure guesses. Here are 8 questions; see how many it gets right now (random guessing averages about 1):',
   's3-title': 'Learning: one batch of flashcards at a time',
   's3-p': 'How the machine “grinds exercises”: take 32 flashcards, guess, then check the answers; for every mistake, nudge the responsible knobs <b>a tiny bit</b> in the right direction. Click “One step” to watch a single step up close, or “Start learning” to fast-forward.',
-  'lab-title': 'Improvement lab: each of the four tricks below helps it learn better. Tick some and train — the score is logged in the comparison table, so try switching them on and off to see the difference. (Changing a switch restarts training.)',
+  'lab-title': 'Improvement lab: each trick below helps it learn better. Tick some and train — the score is logged in the comparison table, so try switching them on and off to see the difference. (Changing a switch restarts training.)',
   'lab-data': '<b>Double the textbook</b> <span class="why">— from 6,000 to 12,000 flashcards</span>',
+  'lab-data60': '<b>The whole textbook (60,000 cards)</b> <span class="why">— use every MNIST training card at once (first tick downloads ~15MB; training takes 20–30s; overrides “Double the textbook”)</span>',
   'lab-mom': '<b>Momentum</b> <span class="why">— keep rolling when several steps agree, cancelling each batch’s whims</span>',
   'lab-decay': '<b>Big steps, then small steps</b> <span class="why">— twist boldly at first, fine-tune near the end</span>',
   'lab-aug': '<b>Nudge cards randomly</b> <span class="why">— shift each card ±1 pixel before showing it: free “new handwriting”</span>',
@@ -1343,7 +1402,7 @@ const I18N_EN = {
   's5-title': 'What you just saw is how ChatGPT works',
   's5-p1': 'This little network and large models like ChatGPT are essentially the same thing — only three numbers differ:',
   's5-table': '<tr><th></th><th>This little demo</th><th>Large models like ChatGPT</th></tr>' +
-    '<tr><td>Examples seen</td><td>6,000–12,000 handwritten digits</td><td>Nearly the whole internet’s text</td></tr>' +
+    '<tr><td>Examples seen</td><td>6,000–60,000 handwritten digits</td><td>Nearly the whole internet’s text</td></tr>' +
     '<tr><td>Number of knobs (parameters)</td><td>13 thousand</td><td>Hundreds of billions</td></tr>' +
     '<tr><td>Task learned</td><td>See a picture → guess the digit</td><td>See the context → guess the next word</td></tr>',
   's5-flow': '<div class="row"><span class="tag">This demo</span><span class="box">Random knobs</span><span class="arrow">→</span><span class="box">🔁 See cards · check answers · twist knobs</span><span class="arrow">→</span><span class="box">Knobs that read new handwriting</span></div>' +
@@ -1367,6 +1426,7 @@ function applyLang() {
   renderGallery(false);
   renderSamplePredictions();
   updateStats();
+  renderLossStat();
   drawLossChart();
   drawNetworkDiagram();
   renderRunsTable();
@@ -1396,6 +1456,10 @@ document.getElementById('btn-output-params').addEventListener('click', openOutpu
 document.getElementById('hidden-map').addEventListener('click', openHiddenModal);
 for (const id of ['opt-data', 'opt-momentum', 'opt-decay', 'opt-aug'])
   document.getElementById(id).addEventListener('change', resetAll);   // 改开关 = 重新开始
+document.getElementById('opt-data60').addEventListener('change', () => {
+  if (document.getElementById('opt-data60').checked && !fullReady) ensureFullData();
+  resetAll();   // 数据未到位时 resetAll 会先锁住训练按钮，加载完成后自动解锁
+});
 document.getElementById('opt-center').addEventListener('change', predictDrawing);  // 切换立即重新识别
 document.getElementById('btn-lang').addEventListener('click', toggleLang);
 document.getElementById('modal-close').addEventListener('click', closeModal);
